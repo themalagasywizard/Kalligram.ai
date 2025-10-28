@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Context Manager - AIStoryCraft</title>
-    <!-- Supabase Configuration -->
-    <meta name="supabase-url" content="https://tadqfmqlqlahoknivhds.supabase.co">
-    <meta name="supabase-anon-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhZHFmbXFscWxhaG9rbml2aGRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYzMTY0MTAsImV4cCI6MjA2MTg5MjQxMH0.6afLHxoHlX3U3JzsqX6d61mpmiu3bICkbHgb1XDY7V0">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
     <!-- Font Awesome Icons -->
@@ -16,9 +13,9 @@
     <!-- Frappe Gantt -->
     <script src="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.1/dist/frappe-gantt.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.1/dist/frappe-gantt.min.css">
-    <!-- Import Supabase client -->
+    <!-- Import local storage client -->
     <script type="module">
-        import { auth, projects, characters, locations, timelineEvents } from './lib/supabase.js';
+        import { auth, projects, characters, locations, timelineEvents } from './lib/local-storage.js';
         // Make them available to non-module scripts
         window.supabaseServices = { auth, projects, characters, locations, timelineEvents };
     </script>

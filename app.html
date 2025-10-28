@@ -4,16 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kalligram</title>
-    <!-- Environment Variables Script -->
-    <script>
-        window.ENV = {
-            SUPABASE_URL: '<%= process.env.SUPABASE_URL %>',
-            SUPABASE_ANON_KEY: '<%= process.env.SUPABASE_ANON_KEY %>'
-        };
-    </script>
-    <!-- Supabase Configuration -->
-    <meta name="supabase-url" content="<%= process.env.SUPABASE_URL %>">
-    <meta name="supabase-anon-key" content="<%= process.env.SUPABASE_ANON_KEY %>">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
     <!-- Font Awesome Icons -->
@@ -925,15 +915,15 @@
     </style>
 </head>
 <body class="h-screen flex flex-col">
-    <!-- Import Supabase client and make it available globally -->
+    <!-- Import local storage client and make it available globally -->
     <script type="module">
-        import { projects, chapters, characters, auth, locations, timelineEvents } from './lib/supabase.js';
+        import { projects, chapters, characters, auth, locations, timelineEvents } from './lib/local-storage.js';
         // Make services available to non-module scripts
         window.supabaseServices = { auth, projects, chapters, characters, locations, timelineEvents };
     </script>
     
     <script type="module">
-        import { projects, chapters, characters, auth } from './lib/supabase.js';
+        import { projects, chapters, characters, auth } from './lib/local-storage.js';
         
         // Global state management
         const appState = {

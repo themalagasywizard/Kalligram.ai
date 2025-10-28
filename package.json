@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "node-fetch": "^2.6.9",
-    "@supabase/supabase-js": "^2.39.3",
     "dotenv": "^16.4.1"
   },
   "devDependencies": {

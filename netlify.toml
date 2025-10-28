@@ -14,8 +14,8 @@
 [functions]
   directory = "functions"
   node_bundler = "esbuild"
-  included_files = ["functions/config.js", "lib/supabase.js"]
-  external_node_modules = ["node-fetch", "@supabase/supabase-js"]
+  included_files = ["functions/config.js", "lib/local-storage.js"]
+  external_node_modules = ["node-fetch"]
 
 [functions.generate-text]
   included_files = ["functions/config.js"]
@@ -77,9 +77,9 @@
 [context.production]
   environment = { NODE_VERSION = "18", SITE_URL = "https://aiwritingtool.netlify.app" }
   # Add your environment variables in the Netlify dashboard
-  # SUPABASE_URL, SUPABASE_ANON_KEY, OPENROUTER_API_KEY
+  # OPENROUTER_API_KEY
 
 [context.deploy-preview]
   environment = { NODE_VERSION = "18", SITE_URL = "https://deploy-preview-aiwritingtool.netlify.app" }
   # Add your environment variables in the Netlify dashboard
-  # SUPABASE_URL, SUPABASE_ANON_KEY, OPENROUTER_API_KEY 
+  # OPENROUTER_API_KEY
