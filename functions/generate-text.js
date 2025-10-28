@@ -1,58 +1,10 @@
 // functions/generate-text.js
 const fetch = require('node-fetch');
 const config = require('./config');
-const { createClient } = require('@supabase/supabase-js');
 
-// Initialize the Supabase client with error handling
-let supabase;
-try {
-  // Check if Supabase environment variables are set
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
-    throw new Error('Supabase credentials missing. Please set SUPABASE_URL and SUPABASE_ANON_KEY environment variables.');
-  }
-
-  // Initialize Supabase client with explicit error handling
-  supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_ANON_KEY,
-    {
-      auth: {
-        persistSession: false // Since this is a serverless function
-      }
-    }
-  );
-
-  // Test the connection
-  console.log('Testing Supabase connection...');
-  supabase.from('projects').select('count').limit(1)
-    .then(() => {
-      console.log('Supabase connection successful');
-    })
-    .catch(error => {
-      console.error('Supabase connection test failed:', error);
-      throw error;
-    });
-
-} catch (error) {
-  console.error('Error initializing Supabase client:', error);
-  supabase = null;
-}
-
-// Add a helper function to check Supabase connection
-const ensureSupabaseConnection = async () => {
-  if (!supabase) {
-    throw new Error('Supabase client not initialized. Please check your environment variables.');
-  }
-  
-  try {
-    // Test the connection with a simple query
-    await supabase.from('projects').select('count').limit(1);
-    return true;
-  } catch (error) {
-    console.error('Supabase connection test failed:', error);
-    throw new Error('Failed to connect to Supabase. Please check your configuration.');
-  }
-};
+// Note: Since we're now using localStorage for data storage (client-side only),
+// this serverless function can no longer access project context from a database.
+// The client will need to send all necessary context in the request body.
 
 // Helper function to truncate text to a maximum length
 const truncateText = (text, maxLength = 1000) => {
@@ -69,205 +21,53 @@ const summarizeText = (text) => {
   return text.substring(0, maxLength) + '...';
 };
 
-// Helper function to fetch project context from Supabase
-const fetchProjectContext = async (projectId, userId, selectedContext = null) => {
+// Helper function to format project context from client-provided data
+const formatProjectContext = (contextData) => {
   try {
-    // Ensure Supabase connection is working
-    await ensureSupabaseConnection();
-    
-    console.log(`Fetching context for project_id: ${projectId}, user_id: ${userId}`);
-    console.log('Selected context:', selectedContext);
-    
-    let characters = [], locations = [], events = [];
-    
-    // If selectedContext is provided, fetch only selected items
-    if (selectedContext) {
-      // Fetch selected characters
-      if (selectedContext.characters.length > 0) {
-        const { data: selectedCharacters, error: charError } = await supabase
-          .from('characters')
-          .select('*')
-          .eq('project_id', projectId)
-          .in('id', selectedContext.characters.map(c => c.id));
-        
-        if (charError) {
-          console.error('Characters query error:', charError);
-        } else {
-          characters = selectedCharacters || [];
-        }
-      }
-      
-      // Fetch selected locations
-      if (selectedContext.locations.length > 0) {
-        const { data: selectedLocations, error: locError } = await supabase
-          .from('locations')
-          .select('*')
-          .eq('project_id', projectId)
-          .in('id', selectedContext.locations.map(l => l.id));
-        
-        if (locError) {
-          console.error('Locations query error:', locError);
-        } else {
-          locations = selectedLocations || [];
-        }
-      }
-      
-      // Fetch selected events
-      if (selectedContext.events.length > 0) {
-        const { data: selectedEvents, error: eventsError } = await supabase
-          .from('timeline_events')
-          .select('*')
-          .eq('project_id', projectId)
-          .in('id', selectedContext.events.map(e => e.id));
-        
-        if (eventsError) {
-          console.error('Events query error:', eventsError);
-        } else {
-          events = selectedEvents || [];
-        }
-      }
-    } else {
-      // If no selection provided, fetch all context items
-      const { data: allCharacters, error: charError } = await supabase
-        .from('characters')
-        .select('*')
-        .eq('project_id', projectId);
-      
-      if (charError) {
-        console.error('Characters query error:', charError);
-      } else {
-        characters = allCharacters || [];
-      }
-      
-      const { data: allLocations, error: locError } = await supabase
-        .from('locations')
-        .select('*')
-        .eq('project_id', projectId);
-      
-      if (locError) {
-        console.error('Locations query error:', locError);
-      } else {
-        locations = allLocations || [];
-      }
-      
-      const { data: allEvents, error: eventsError } = await supabase
-        .from('timeline_events')
-        .select('*')
-        .eq('project_id', projectId);
-      
-      if (eventsError) {
-        console.error('Events query error:', eventsError);
-      } else {
-        events = allEvents || [];
-      }
+    if (!contextData || !contextData.items) {
+      return '';
     }
     
-    // Try to fetch all timeline_event_characters links if we have events
-    let eventCharacterLinks = [];
-    if (events.length > 0) {
-      try {
-        const { data: links, error: linksError } = await supabase
-          .from('timeline_event_characters')
-          .select('*')
-          .in('event_id', events.map(e => e.id));
-        
-        if (!linksError) {
-          eventCharacterLinks = links || [];
-          console.log(`Found ${eventCharacterLinks.length} timeline_event_characters links`);
-        }
-      } catch (e) {
-        console.log('Error checking for timeline_event_characters:', e.message);
-      }
-    }
+    const { characters = [], locations = [], events = [] } = contextData.items;
     
-    // Format the context string with more detailed information
+    // Format the context string
     let contextString = 'Project Context:\n\n';
     
-    // Add characters section with detailed information
+    // Add characters
     contextString += 'Characters:\n';
     if (characters.length > 0) {
       characters.forEach(char => {
         contextString += `Character: ${char.name}\n`;
-        contextString += `  Role: ${char.role || 'Unspecified'}\n`;
+        if (char.role) contextString += `  Role: ${char.role}\n`;
         if (char.traits) contextString += `  Traits: ${truncateText(char.traits, 200)}\n`;
         if (char.backstory) contextString += `  Backstory: ${truncateText(char.backstory, 300)}\n`;
-        
-        // Add event connections if we have them
-        if (eventCharacterLinks.length > 0) {
-          const characterEvents = events.filter(event => 
-            eventCharacterLinks.some(link => 
-              link.character_id === char.id && link.event_id === event.id
-            )
-          );
-          
-          if (characterEvents.length > 0) {
-            contextString += `  Appears in events:\n`;
-            characterEvents.forEach(event => {
-              contextString += `    - ${event.name} (${event.date_time || 'unknown time'})\n`;
-            });
-          }
-        }
-        
         contextString += '\n';
       });
     } else {
       contextString += 'No characters selected.\n\n';
     }
     
-    // Add locations section with detailed information
+    // Add locations
     contextString += 'Locations:\n';
     if (locations.length > 0) {
       locations.forEach(loc => {
         contextString += `Location: ${loc.name}\n`;
-        contextString += `  Type: ${loc.type || 'Unspecified'}\n`;
+        if (loc.type) contextString += `  Type: ${loc.type}\n`;
         if (loc.description) contextString += `  Description: ${truncateText(loc.description, 200)}\n`;
         if (loc.key_features) contextString += `  Key Features: ${truncateText(loc.key_features, 200)}\n`;
-        
-        // Add events that occur at this location
-        const locationEvents = events.filter(event => event.location_id === loc.id);
-        if (locationEvents.length > 0) {
-          contextString += `  Events at this location:\n`;
-          locationEvents.forEach(event => {
-            contextString += `    - ${event.name} (${event.date_time || 'unknown time'})\n`;
-          });
-        }
-        
         contextString += '\n';
       });
     } else {
       contextString += 'No locations selected.\n\n';
     }
     
-    // Add timeline events section
+    // Add events
     contextString += 'Timeline Events:\n';
     if (events.length > 0) {
-      // Sort events by date_time if available
-      const sortedEvents = [...events].sort((a, b) => {
-        if (!a.date_time) return 1;
-        if (!b.date_time) return -1;
-        return new Date(a.date_time) - new Date(b.date_time);
-      });
-      
-      sortedEvents.forEach(event => {
+      events.forEach(event => {
         contextString += `Event: ${event.name}\n`;
         if (event.date_time) contextString += `  Time: ${event.date_time}\n`;
         if (event.description) contextString += `  Description: ${truncateText(event.description, 200)}\n`;
-        
-        // Add location if available
-        const location = locations.find(loc => loc.id === event.location_id);
-        if (location) contextString += `  Location: ${location.name}\n`;
-        
-        // Add involved characters
-        const involvedCharacters = characters.filter(char =>
-          eventCharacterLinks.some(link =>
-            link.event_id === event.id && link.character_id === char.id
-          )
-        );
-        
-        if (involvedCharacters.length > 0) {
-          contextString += `  Characters involved: ${involvedCharacters.map(c => c.name).join(', ')}\n`;
-        }
-        
         contextString += '\n';
       });
     } else {
@@ -276,118 +76,35 @@ const fetchProjectContext = async (projectId, userId, selectedContext = null) =>
     
     return contextString;
   } catch (error) {
-    console.error('Error in fetchProjectContext:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      details: error.details,
-      hint: error.hint
-    });
-    return 'Error fetching project context: ' + error.message;
+    console.error('Error in formatProjectContext:', error);
+    return '';
   }
 };
 
-// Helper function to fetch previous chapters with focus on continuity
-const fetchPreviousChapters = async (projectId, userId, prompt = '') => {
+// Helper function to format previous chapters from client-provided data
+const formatPreviousChapters = (chaptersData) => {
   try {
-    // Ensure Supabase connection is working
-    await ensureSupabaseConnection();
-    
-    console.log(`Fetching previous chapters for project_id: ${projectId}`);
-    
-    // Extract chapter number from prompt if it exists
-    const chapterMatch = prompt.match(/chapter\s+(\d+)/i);
-    const targetChapter = chapterMatch ? parseInt(chapterMatch[1]) : null;
-    console.log('Target chapter from prompt:', targetChapter);
-    
-    // Direct query using known table name
-    console.log('Querying "chapters" table with project_id:', projectId);
-    const { data: chapters, error: chaptersError } = await supabase
-      .from('chapters')
-      .select('*')
-      .eq('project_id', projectId)
-      .order('order_index', { ascending: true });
-    
-    if (chaptersError) {
-      console.error('Chapters query error:', chaptersError);
-      return 'Error fetching chapters: ' + chaptersError.message;
+    if (!chaptersData || chaptersData.length === 0) {
+      return 'No previous chapters found.';
     }
     
-    console.log(`Retrieved ${chapters?.length || 0} chapters from database`);
-    if (chapters?.length > 0) {
-      console.log('Sample chapter data:', chapters[0]);
-    }
+    let chaptersText = 'PREVIOUS CHAPTERS:\n\n';
     
-    if (chapters && chapters.length > 0) {
-      console.log(`Found ${chapters.length} chapters`);
-      let chaptersText = 'PREVIOUS CHAPTERS:\n\n';
-      
-      if (targetChapter) {
-        // If continuing a specific chapter, focus on that chapter and its immediate predecessor
-        const targetIndex = chapters.findIndex(chapter => 
-          chapter.order_index === targetChapter - 1 || 
-          (chapter.chapter_number && chapter.chapter_number === targetChapter)
-        );
-        
-        if (targetIndex !== -1) {
-          console.log(`Found target chapter at index ${targetIndex}`);
-          
-          // Add the target chapter
-          const targetChapterData = chapters[targetIndex];
-          chaptersText += `CURRENT CHAPTER TO CONTINUE FROM (Chapter ${targetChapter}):\n`;
-          chaptersText += `Title: ${targetChapterData.title || 'Untitled'}\n`;
-          chaptersText += `${targetChapterData.content}\n\n`;
-          
-          // Add the previous chapter for context if it exists
-          if (targetIndex > 0) {
-            const previousChapter = chapters[targetIndex - 1];
-            const prevChapterNum = previousChapter.chapter_number || targetChapter - 1;
-            chaptersText += `PREVIOUS CHAPTER (Chapter ${prevChapterNum}):\n`;
-            chaptersText += `Title: ${previousChapter.title || 'Untitled'}\n`;
-            chaptersText += `${summarizeText(previousChapter.content)}\n\n`;
-          }
-          
-          // Add a brief summary of earlier chapters
-          if (targetIndex > 1) {
-            chaptersText += 'EARLIER CHAPTERS SUMMARY:\n';
-            chapters.slice(0, targetIndex - 1).forEach((chapter, index) => {
-              const chapterNum = chapter.chapter_number || index + 1;
-              chaptersText += `Chapter ${chapterNum}: ${chapter.title || 'Untitled'}\n`;
-              chaptersText += `${summarizeText(chapter.content, 200)}\n\n`;
-            });
-          }
-        } else {
-          console.log(`Target chapter ${targetChapter} not found in retrieved chapters`);
-          chaptersText += `Warning: Chapter ${targetChapter} not found. Here are all available chapters:\n\n`;
-          chapters.forEach((chapter, index) => {
-            const chapterNum = chapter.chapter_number || chapter.order_index || (index + 1);
-            chaptersText += `Chapter ${chapterNum}: ${chapter.title || 'Untitled'}\n`;
-            chaptersText += `${summarizeText(chapter.content)}\n\n`;
-          });
-        }
+    chaptersData.forEach((chapter, index) => {
+      const chapterNum = chapter.order_index || (index + 1);
+      chaptersText += `Chapter ${chapterNum}: ${chapter.title || 'Untitled'}\n`;
+      // Show full content for the most recent chapter, summaries for others
+      if (index === chaptersData.length - 1) {
+        chaptersText += `${chapter.content}\n\n`;
       } else {
-        // If not continuing a specific chapter, include all chapters with most recent in full
-        console.log('No specific chapter targeted, including all chapters');
-        chapters.forEach((chapter, index) => {
-          const chapterNum = chapter.chapter_number || chapter.order_index || (index + 1);
-          chaptersText += `Chapter ${chapterNum}: ${chapter.title || 'Untitled'}\n`;
-          // Show full content for the most recent chapter, summaries for others
-          if (index === chapters.length - 1) {
-            chaptersText += `${chapter.content}\n\n`;
-          } else {
-            chaptersText += `${summarizeText(chapter.content)}\n\n`;
-          }
-        });
+        chaptersText += `${summarizeText(chapter.content)}\n\n`;
       }
-      
-      return chaptersText;
-    }
+    });
     
-    console.log('No previous chapters found');
-    return 'No previous chapters found.';
+    return chaptersText;
   } catch (error) {
-    console.error('Error fetching previous chapters:', error);
-    return 'Error fetching previous chapters: ' + error.message;
+    console.error('Error formatting previous chapters:', error);
+    return '';
   }
 };
 
@@ -700,65 +417,32 @@ exports.handler = async (event) => {
             };
         }
         
-        // Fetch user data, project context, and previous chapters
+        // Format context data from client request
         let userName = 'User'; // Default value
         let contextString = '';
         let previousChapters = '';
         
         try {
-            // Get authenticated user data if Supabase is available
-            if (supabase) {
-                // Get user from auth
-                const { data: authData, error: authError } = await supabase.auth.getUser();
-                
-                if (!authError && authData && authData.user) {
-                    // Try to get user's name from auth.users table
-                    const { data: userData, error: userError } = await supabase
-                        .from('profiles')  // Assuming a profiles table exists with user names
-                        .select('name')
-                        .eq('id', authData.user.id)
-                        .single();
-                    
-                    if (!userError && userData && userData.name) {
-                        userName = userData.name;
-                    } else {
-                        console.log('User profile not found, using email or default name');
-                        // Fallback to email address if available
-                        userName = authData.user.email?.split('@')[0] || 'User';
-                    }
-                } else {
-                    console.log('Auth user not found, using default name');
-                }
-                
-                // Use fallback values if original values are missing
-                const effectiveUserId = user_id || 'debug-user';
-                const effectiveProjectId = project_id || 'debug-project';
-                
-                // Fetch project context (skip if using debug values)
-                if (user_id && project_id) {
-                    contextString = await fetchProjectContext(effectiveProjectId, effectiveUserId, context);
-                    // Fetch all previous chapters
-                    previousChapters = await fetchPreviousChapters(effectiveProjectId, effectiveUserId, prompt);
-                } else {
-                    console.log('Skipping context fetching due to missing user/project IDs');
-                    contextString = '';
-                    previousChapters = '';
-                }
-                
-                // Log the context being fed to the AI
-                console.log('========== CONTEXT BEING FED TO AI ==========');
-                console.log('Mode:', mode);
-                console.log('Context String:', contextString);
-                console.log('----------------------------------------');
-                console.log('Previous Chapters:', previousChapters);
-                console.log('==========================================');
-                
-                console.log('Fetched context data successfully');
-            } else {
-                console.warn('Supabase client not available, skipping context fetching');
+            // Extract context and chapters from request body
+            // The client should now send context and previousChapters data in the request
+            if (parsedBody.contextData) {
+                contextString = formatProjectContext(parsedBody.contextData);
+                console.log('Formatted context from client data');
             }
+            
+            if (parsedBody.previousChapters) {
+                previousChapters = formatPreviousChapters(parsedBody.previousChapters);
+                console.log('Formatted previous chapters from client data');
+            }
+            
+            // Log the context being fed to the AI
+            console.log('========== CONTEXT BEING FED TO AI ==========');
+            console.log('Mode:', mode);
+            console.log('Context String:', contextString.substring(0, 500));
+            console.log('Previous Chapters:', previousChapters.substring(0, 500));
+            console.log('==========================================');
         } catch (contextError) {
-            console.error('Error fetching context data:', contextError);
+            console.error('Error formatting context data:', contextError);
             // Don't fail the entire request, just log the error and proceed with defaults
         }
 

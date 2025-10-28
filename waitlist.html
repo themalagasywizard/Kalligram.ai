@@ -161,8 +161,6 @@
     </div>
 
     <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
         // Form elements
         const form = document.getElementById('waitlistForm');
         const emailInput = document.getElementById('email');
@@ -170,24 +168,6 @@
         const submitButton = form?.querySelector('button[type="submit"]');
         const successMessage = document.getElementById('successMessage');
         const errorMessage = document.getElementById('errorMessage');
-
-        // Initialize Supabase client
-        let supabase;
-        
-        async function initSupabase() {
-            const supabaseUrl = document.querySelector('meta[name="supabase-url"]').content;
-            const supabaseAnonKey = document.querySelector('meta[name="supabase-anon-key"]').content;
-            
-            try {
-                if (!supabaseUrl || !supabaseAnonKey) {
-                    throw new Error('Supabase configuration is missing');
-                }
-                supabase = createClient(supabaseUrl, supabaseAnonKey);
-            } catch (error) {
-                console.error('Failed to initialize Supabase client:', error);
-                showError('Unable to connect to the service. Please try again later.');
-            }
-        }
 
         // Validate email format
         function isValidEmail(email) {
@@ -256,11 +236,6 @@
             e.preventDefault();
             hideError();
 
-            if (!supabase) {
-                showError('Service not initialized. Please try again later.');
-                return;
-            }
-
             const email = emailInput?.value?.trim();
             const interests = document.getElementById('interests')?.value || '';
 
@@ -280,26 +255,24 @@
             setLoading(true);
 
             try {
-                // Insert into waitlist table
-                const { data, error } = await supabase
-                    .from('waitlist')
-                    .insert([
-                        { 
-                            email: email,
-                            interests: interests,
-                            signup_date: new Date().toISOString()
-                        }
-                    ]);
-
-                if (error) {
-                    if (error.code === '23505') {
-                        showError('This email is already on the waitlist!');
-                    } else {
-                        console.error('Supabase error:', error);
-                        showError('Something went wrong. Please try again.');
-                    }
+                // Store in localStorage
+                const waitlist = JSON.parse(localStorage.getItem('waitlist') || '[]');
+                
+                // Check if email already exists
+                if (waitlist.some(entry => entry.email === email)) {
+                    showError('This email is already on the waitlist!');
+                    setLoading(false);
                     return;
                 }
+                
+                // Add to waitlist
+                waitlist.push({ 
+                    email: email,
+                    interests: interests,
+                    signup_date: new Date().toISOString()
+                });
+                
+                localStorage.setItem('waitlist', JSON.stringify(waitlist));
 
                 // Show success message
                 showSuccess();
@@ -325,10 +298,7 @@
         }
 
         // Initialize everything when the DOM is loaded
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Initialize Supabase
-            await initSupabase();
-
+        document.addEventListener('DOMContentLoaded', () => {
             // Add form submit handler
             if (form) {
                 form.addEventListener('submit', handleSubmit);
