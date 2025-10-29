@@ -175,8 +175,8 @@ export function Editor() {
                     >
                       {/* Title and content are loaded via useEffect for the first page only */}
                     </div>
-                    {/* Page number indicator - moved to left corner */}
-                    <div className="absolute bottom-4 left-8 text-sm text-gray-400 dark:text-gray-600">
+                    {/* Page number indicator - positioned within page margins */}
+                    <div className="absolute bottom-[1in] left-[0.75in] text-sm text-gray-400 dark:text-gray-600">
                       Page {pageNum}
                     </div>
                   </div>
