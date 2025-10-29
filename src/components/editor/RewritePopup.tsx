@@ -66,7 +66,6 @@ export function RewritePopup({
     const span = document.createElement('span');
     span.className = 'bg-green-200 dark:bg-green-900/40 transition-colors relative px-1 rounded flex items-center gap-1';
     span.innerHTML = `${selectedText}<span class="inline-block w-3 h-3 border border-current border-t-transparent rounded-full animate-spin ml-1"></span>`;
-    span.contentEditable = 'false';
 
     diffElementRef.current = span;
     selectionRange.deleteContents();
@@ -144,7 +143,6 @@ export function RewritePopup({
     const span = document.createElement('span');
     span.className = 'bg-green-200 dark:bg-green-900/40 transition-colors relative px-1 rounded flex items-center gap-1';
     span.innerHTML = `${selectedText}<span class="inline-block w-3 h-3 border border-current border-t-transparent rounded-full animate-spin ml-1"></span>`;
-    span.contentEditable = 'false';
 
     diffElementRef.current = span;
     selectionRange.deleteContents();
@@ -215,9 +213,12 @@ export function RewritePopup({
     e.preventDefault();
     e.stopPropagation();
     if (diffElementRef.current) {
-      // Replace the span with plain text
-      const textNode = document.createTextNode(rewrittenText);
-      diffElementRef.current.parentNode?.replaceChild(textNode, diffElementRef.current);
+      // Make the span editable and remove the green background
+      diffElementRef.current.contentEditable = 'true';
+      diffElementRef.current.className = '';
+      diffElementRef.current.style.backgroundColor = 'transparent';
+      diffElementRef.current.style.padding = '0';
+      diffElementRef.current.style.borderRadius = '0';
       diffElementRef.current = null;
     }
     setShowDiff(false);
