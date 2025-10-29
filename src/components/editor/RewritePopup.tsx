@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Check, X, Loader2 } from 'lucide-react';
+import { Sparkles, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -61,9 +61,22 @@ export function RewritePopup({
     setOriginalText(selectedText);
     onRewrite();
 
+    // Immediately replace selected text with green highlighted version showing loading
+    const span = document.createElement('span');
+    span.className = 'bg-green-200 dark:bg-green-900/40 transition-colors relative px-1 rounded flex items-center gap-1';
+    span.innerHTML = `${selectedText}<span class="inline-block w-3 h-3 border border-current border-t-transparent rounded-full animate-spin ml-1"></span>`;
+    span.contentEditable = 'false';
+
+    diffElementRef.current = span;
+    selectionRange.deleteContents();
+    selectionRange.insertNode(span);
+
+    setShowDiff(true);
+    setIsDirty(true);
+
     try {
       const apiKey = localStorage.getItem('openrouter_api_key');
-      
+
       if (!apiKey) {
         throw new Error('Please add your OpenRouter API key in Settings');
       }
@@ -100,22 +113,20 @@ export function RewritePopup({
       const rewritten = data.message.trim();
       setRewrittenText(rewritten);
 
-      // Replace the selected text with rewritten version
-      const span = document.createElement('span');
-      span.className = 'bg-green-200 dark:bg-green-900/40 transition-colors relative px-1 rounded';
-      span.textContent = rewritten;
-      span.contentEditable = 'false';
-      
-      diffElementRef.current = span;
-      selectionRange.deleteContents();
-      selectionRange.insertNode(span);
+      // Update the span content with the rewritten text
+      if (diffElementRef.current) {
+        diffElementRef.current.innerHTML = rewritten;
+      }
 
-      setShowDiff(true);
-      setIsDirty(true);
       toast.success('Text rewritten');
     } catch (error: any) {
       console.error('Rewrite error:', error);
+      // On error, revert to original text
+      if (diffElementRef.current) {
+        diffElementRef.current.innerHTML = selectedText;
+      }
       toast.error(error.message || 'Failed to rewrite text');
+      setShowDiff(false);
     } finally {
       setIsRewriting(false);
     }
@@ -187,22 +198,6 @@ export function RewritePopup({
         </div>
       )}
 
-      {/* Animation indicator above rewritten text during rewriting */}
-      {isRewriting && diffElementRef.current && (
-        <div
-          className="fixed z-50 animate-in fade-in-0 slide-in-from-top-2"
-          style={{
-            top: `${diffElementRef.current.getBoundingClientRect().top - 30}px`,
-            left: `${diffElementRef.current.getBoundingClientRect().left + diffElementRef.current.getBoundingClientRect().width / 2}px`,
-            transform: 'translateX(-50%)'
-          }}
-        >
-          <div className="flex items-center gap-2 bg-blue-500 text-white px-3 py-1 rounded-full shadow-lg">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            <span className="text-xs font-medium">AI Rewriting...</span>
-          </div>
-        </div>
-      )}
 
       {/* Accept/Cancel buttons - floating near the rewritten text */}
       {showDiff && diffElementRef.current && (
