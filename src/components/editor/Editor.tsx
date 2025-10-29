@@ -160,7 +160,7 @@ export function Editor() {
                     "mx-auto",
                     "bg-white dark:bg-gray-900",
                     "shadow-lg border border-gray-200 dark:border-gray-700",
-                    "px-[0.75in] py-[1in]", // Standard margins: 0.75in sides, 1in top/bottom
+                        "px-[1in] py-[1.25in]", // Print-safe margins: 1in sides, 1.25in top/bottom
                     "relative",
                     // CSS for page breaks - content flows naturally with page-like breaks
                     "break-inside-avoid",
@@ -187,19 +187,19 @@ export function Editor() {
                     className="absolute w-full border-t-4 border-solid border-gray-400 dark:border-gray-500 bg-gray-100 dark:bg-gray-800"
                     style={{
                       top: `${(i + 1) * 11.69}in`,
-                      marginTop: '1in', // Account for top padding
+                      marginTop: '1.25in', // Account for new top padding
                       height: '8px' // Add some height to create a clear separation zone
                     }}
                   />
                 ))}
 
-                {/* Page numbers */}
+                    {/* Page numbers */}
                 {pages.map((pageNum) => (
                   <div
                     key={pageNum}
-                    className="absolute bottom-[1in] left-[0.75in] text-sm text-gray-400 dark:text-gray-600"
+                    className="absolute bottom-[1.25in] left-[1in] text-sm text-gray-400 dark:text-gray-600"
                     style={{
-                      top: `${(pageNum - 1) * 11.69 + 10.69}in` // Position at bottom of each page
+                      top: `${(pageNum - 1) * 11.69 + 10.44}in` // Position at bottom of each page accounting for new margins
                     }}
                   >
                     Page {pageNum}
