@@ -55,8 +55,8 @@
     page-break-inside: avoid;
   }
 
-  /* Hide visual page break lines when printing */
-  .border-dashed {
+  /* Hide visual page border separators when printing */
+  .border-solid.border-t-4 {
     display: none !important;
   }
 

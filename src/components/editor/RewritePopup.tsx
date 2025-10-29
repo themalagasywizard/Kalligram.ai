@@ -64,7 +64,7 @@ export function RewritePopup({
 
     // Immediately replace selected text with green highlighted version showing loading
     const span = document.createElement('span');
-    span.className = 'bg-green-200 dark:bg-green-900/40 transition-colors relative px-1 rounded flex items-center gap-1';
+    span.className = 'bg-green-200 dark:bg-green-900/40 transition-colors inline-flex items-center';
     span.innerHTML = `${selectedText}<span class="inline-block w-3 h-3 border border-current border-t-transparent rounded-full animate-spin ml-1"></span>`;
 
     diffElementRef.current = span;
@@ -141,7 +141,7 @@ export function RewritePopup({
 
     // Immediately replace selected text with green highlighted version showing loading
     const span = document.createElement('span');
-    span.className = 'bg-green-200 dark:bg-green-900/40 transition-colors relative px-1 rounded flex items-center gap-1';
+    span.className = 'bg-green-200 dark:bg-green-900/40 transition-colors inline-flex items-center';
     span.innerHTML = `${selectedText}<span class="inline-block w-3 h-3 border border-current border-t-transparent rounded-full animate-spin ml-1"></span>`;
 
     diffElementRef.current = span;
