@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Check, X, Loader2 } from 'lucide-react';
+import { Sparkles, Check, X, Loader2, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -31,6 +31,7 @@ export function RewritePopup({
   const [showDiff, setShowDiff] = useState(false);
   const diffElementRef = useRef<HTMLSpanElement | null>(null);
   const [forceUpdate, setForceUpdate] = useState(0);
+  const [isContinuing, setIsContinuing] = useState(false);
 
   useEffect(() => {
     if (!show && !showDiff) {
@@ -132,6 +133,84 @@ export function RewritePopup({
     }
   };
 
+  const handleContinue = async () => {
+    if (!selectionRange || !selectedText) return;
+
+    setIsContinuing(true);
+    setOriginalText(selectedText);
+    onRewrite();
+
+    // Immediately replace selected text with green highlighted version showing loading
+    const span = document.createElement('span');
+    span.className = 'bg-green-200 dark:bg-green-900/40 transition-colors relative px-1 rounded flex items-center gap-1';
+    span.innerHTML = `${selectedText}<span class="inline-block w-3 h-3 border border-current border-t-transparent rounded-full animate-spin ml-1"></span>`;
+    span.contentEditable = 'false';
+
+    diffElementRef.current = span;
+    selectionRange.deleteContents();
+    selectionRange.insertNode(span);
+
+    setShowDiff(true);
+    setIsDirty(true);
+
+    try {
+      const apiKey = localStorage.getItem('openrouter_api_key');
+
+      if (!apiKey) {
+        throw new Error('Please add your OpenRouter API key in Settings');
+      }
+
+      // Get selected model from localStorage
+      const savedModel = localStorage.getItem('selected_ai_model') || 'qwen/qwen3-235b-a22b:free';
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a professional writing assistant. Continue the story naturally from the following text. Write a few more sentences or paragraphs to extend the narrative, maintaining the same style, tone, and voice. Only return the continuation text without any explanation or additional commentary.'
+            },
+            {
+              role: 'user',
+              content: selectedText
+            }
+          ],
+          model: savedModel,
+          apiKey
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMsg = typeof data.error === 'string' ? data.error : data.error?.message || data.message || 'Failed to get AI response';
+        throw new Error(errorMsg);
+      }
+
+      const continuedText = data.message.trim();
+      setRewrittenText(selectedText + continuedText);
+
+      // Update the span content with the continued text
+      if (diffElementRef.current) {
+        diffElementRef.current.innerHTML = selectedText + continuedText;
+      }
+
+      toast.success('Story continued');
+    } catch (error: any) {
+      console.error('Continue error:', error);
+      // On error, revert to original text
+      if (diffElementRef.current) {
+        diffElementRef.current.innerHTML = selectedText;
+      }
+      toast.error(error.message || 'Failed to continue story');
+      setShowDiff(false);
+    } finally {
+      setIsContinuing(false);
+    }
+  };
+
   const handleAccept = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -166,7 +245,7 @@ export function RewritePopup({
 
   return (
     <>
-      {/* Rewrite button popup */}
+      {/* Rewrite and Continue buttons popup */}
       {show && !showDiff && (
         <div
           className="fixed z-50 animate-in fade-in-0 zoom-in-95"
@@ -176,25 +255,44 @@ export function RewritePopup({
             transform: 'translateX(-50%)'
           }}
         >
-          <Button
-            size="sm"
-            variant="secondary"
-            className="shadow-lg"
-            onClick={handleRewrite}
-            disabled={isRewriting}
-          >
-            {isRewriting ? (
-              <>
-                <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-                Rewriting...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-3 w-3 mr-1.5" />
-                Rewrite
-              </>
-            )}
-          </Button>
+          <div className="flex gap-1 bg-card border rounded-lg shadow-lg p-1">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleRewrite}
+              disabled={isRewriting || isContinuing}
+            >
+              {isRewriting ? (
+                <>
+                  <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                  Rewriting...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-3 w-3 mr-1.5" />
+                  Rewrite
+                </>
+              )}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleContinue}
+              disabled={isRewriting || isContinuing}
+            >
+              {isContinuing ? (
+                <>
+                  <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                  Continuing...
+                </>
+              ) : (
+                <>
+                  <ArrowRight className="h-3 w-3 mr-1.5" />
+                  Continue
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       )}
 
