@@ -13,7 +13,7 @@ export function Editor() {
   const [selectionRange, setSelectionRange] = useState<Range | null>(null);
   const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 });
   const [showPopup, setShowPopup] = useState(false);
-  const [pages, setPages] = useState<number[]>([1]);
+  const [pages, setPages] = useState<number[]>([1]); // Keep for page break visualization
 
   const countWords = useCallback((text: string): number => {
     const cleanText = text.replace(/<[^>]*>/g, '');
@@ -142,43 +142,66 @@ export function Editor() {
         <div className="max-w-4xl mx-auto">
           {currentChapter ? (
             <>
-              {/* A4 Pages Container */}
-              <div className="space-y-8">
-                {pages.map((pageNum, index) => (
-                  <div key={pageNum} className="relative">
-                    <div
-                      ref={index === 0 ? editorRef : undefined}
-                      contentEditable={index === 0}
-                      suppressContentEditableWarning
-                      onInput={index === 0 ? handleInput : undefined}
-                      className={cn(
-                        "prose prose-lg dark:prose-invert max-w-none",
-                        "focus:outline-none",
-                        "font-serif leading-relaxed",
-                        // A4 dimensions: 210mm x 297mm = ~595px x ~842px at 72 DPI
-                        // Using CSS inches for better accuracy: 8.27in x 11.69in
-                        "w-[8.27in] h-[11.69in]",
-                        "mx-auto",
-                        "bg-white dark:bg-gray-900",
-                        "shadow-lg border border-gray-200 dark:border-gray-700",
-                        "px-[0.75in] py-[1in]", // Standard margins: 0.75in sides, 1in top/bottom
-                        "relative",
-                        "overflow-hidden"
-                      )}
-                      style={{
-                        fontFamily: "'Merriweather', serif",
-                        lineHeight: 1.8,
-                        // Ensure content breaks to new pages
-                        orphans: 3,
-                        widows: 3
-                      }}
-                    >
-                      {/* Title and content are loaded via useEffect for the first page only */}
-                    </div>
-                    {/* Page number indicator - positioned within page margins */}
-                    <div className="absolute bottom-[1in] left-[0.75in] text-sm text-gray-400 dark:text-gray-600">
-                      Page {pageNum}
-                    </div>
+              {/* A4 Page Container with Visual Pagination */}
+              <div className="relative">
+                <div
+                  ref={editorRef}
+                  contentEditable
+                  suppressContentEditableWarning
+                  onInput={handleInput}
+                  className={cn(
+                    "prose prose-lg dark:prose-invert max-w-none",
+                    "focus:outline-none",
+                    "font-serif leading-relaxed",
+                    // A4 dimensions: 210mm x 297mm = ~595px x ~842px at 72 DPI
+                    // Using CSS inches for better accuracy: 8.27in x 11.69in
+                    "w-[8.27in]",
+                    "min-h-[11.69in]",
+                    "mx-auto",
+                    "bg-white dark:bg-gray-900",
+                    "shadow-lg border border-gray-200 dark:border-gray-700",
+                    "px-[0.75in] py-[1in]", // Standard margins: 0.75in sides, 1in top/bottom
+                    "relative",
+                    // CSS for page breaks - content flows naturally with page-like breaks
+                    "break-inside-avoid",
+                    "page-break-inside-avoid"
+                  )}
+                  style={{
+                    fontFamily: "'Merriweather', serif",
+                    lineHeight: 1.8,
+                    // Ensure content breaks properly
+                    orphans: 3,
+                    widows: 3,
+                    // Allow content to grow beyond single page height
+                    maxHeight: 'none',
+                    height: 'auto'
+                  }}
+                >
+                  {/* Title and content are loaded via useEffect */}
+                </div>
+
+                {/* Visual page break lines */}
+                {Array.from({ length: Math.max(1, pages.length - 1) }, (_, i) => (
+                  <div
+                    key={i}
+                    className="absolute w-full border-t-2 border-dashed border-gray-300 dark:border-gray-600"
+                    style={{
+                      top: `${(i + 1) * 11.69}in`,
+                      marginTop: '1in' // Account for top padding
+                    }}
+                  />
+                ))}
+
+                {/* Page numbers */}
+                {pages.map((pageNum) => (
+                  <div
+                    key={pageNum}
+                    className="absolute bottom-[1in] left-[0.75in] text-sm text-gray-400 dark:text-gray-600"
+                    style={{
+                      top: `${(pageNum - 1) * 11.69 + 10.69}in` // Position at bottom of each page
+                    }}
+                  >
+                    Page {pageNum}
                   </div>
                 ))}
               </div>
