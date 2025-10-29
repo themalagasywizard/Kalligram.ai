@@ -30,14 +30,29 @@ export function RewritePopup({
   const [originalText, setOriginalText] = useState('');
   const [showDiff, setShowDiff] = useState(false);
   const diffElementRef = useRef<HTMLSpanElement | null>(null);
+  const [forceUpdate, setForceUpdate] = useState(0);
 
   useEffect(() => {
-    if (!show) {
+    if (!show && !showDiff) {
       setShowDiff(false);
       setRewrittenText('');
       setOriginalText('');
     }
-  }, [show]);
+  }, [show, showDiff]);
+
+  // Update button positions on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (showDiff) {
+        setForceUpdate(prev => prev + 1);
+      }
+    };
+
+    if (showDiff) {
+      window.addEventListener('scroll', handleScroll, true);
+      return () => window.removeEventListener('scroll', handleScroll, true);
+    }
+  }, [showDiff]);
 
   const handleRewrite = async () => {
     if (!selectionRange || !selectedText) return;
@@ -106,7 +121,9 @@ export function RewritePopup({
     }
   };
 
-  const handleAccept = () => {
+  const handleAccept = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (diffElementRef.current) {
       // Replace the span with plain text
       const textNode = document.createTextNode(rewrittenText);
@@ -119,7 +136,9 @@ export function RewritePopup({
     onClose();
   };
 
-  const handleCancel = () => {
+  const handleCancel = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (diffElementRef.current) {
       // Replace with original text
       const textNode = document.createTextNode(originalText);
@@ -168,6 +187,23 @@ export function RewritePopup({
         </div>
       )}
 
+      {/* Animation indicator above rewritten text during rewriting */}
+      {isRewriting && diffElementRef.current && (
+        <div
+          className="fixed z-50 animate-in fade-in-0 slide-in-from-top-2"
+          style={{
+            top: `${diffElementRef.current.getBoundingClientRect().top - 30}px`,
+            left: `${diffElementRef.current.getBoundingClientRect().left + diffElementRef.current.getBoundingClientRect().width / 2}px`,
+            transform: 'translateX(-50%)'
+          }}
+        >
+          <div className="flex items-center gap-2 bg-blue-500 text-white px-3 py-1 rounded-full shadow-lg">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            <span className="text-xs font-medium">AI Rewriting...</span>
+          </div>
+        </div>
+      )}
+
       {/* Accept/Cancel buttons - floating near the rewritten text */}
       {showDiff && diffElementRef.current && (
         <div
@@ -176,6 +212,7 @@ export function RewritePopup({
             top: `${diffElementRef.current.getBoundingClientRect().bottom + 5}px`,
             left: `${diffElementRef.current.getBoundingClientRect().left}px`
           }}
+          onClick={(e) => e.stopPropagation()}
         >
           <Button
             size="sm"
