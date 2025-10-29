@@ -71,6 +71,29 @@ export function Editor() {
 
         // Combine title and content
         firstPage.innerHTML = titleElement.outerHTML + content;
+
+        // Apply saved font
+        const savedFont = localStorage.getItem('selectedFont') || 'Merriweather';
+        const fontOption = [
+          { name: 'Merriweather', value: 'Merriweather, serif' },
+          { name: 'Crimson Text', value: 'Crimson Text, serif' },
+          { name: 'Lato', value: 'Lato, sans-serif' },
+          { name: 'Open Sans', value: 'Open Sans, sans-serif' },
+          { name: 'Roboto', value: 'Roboto, sans-serif' },
+          { name: 'Montserrat', value: 'Montserrat, sans-serif' },
+          { name: 'Poppins', value: 'Poppins, sans-serif' },
+          { name: 'Nunito', value: 'Nunito, sans-serif' },
+          { name: 'Inter', value: 'Inter, sans-serif' },
+          { name: 'Source Sans Pro', value: 'Source Sans Pro, sans-serif' },
+          { name: 'Times New Roman', value: 'Times New Roman, serif' },
+          { name: 'Arial', value: 'Arial, sans-serif' },
+          { name: 'Georgia', value: 'Georgia, serif' },
+          { name: 'Verdana', value: 'Verdana, sans-serif' },
+        ].find(f => f.name === savedFont);
+
+        if (fontOption) {
+          firstPage.style.fontFamily = fontOption.value;
+        }
       }
     }
   }, [currentChapter?.id]); // Only update when chapter changes
@@ -120,8 +143,14 @@ export function Editor() {
   }, []);
 
   const execCommand = useCallback((command: string, value?: string) => {
-    document.execCommand(command, false, value || undefined);
-    setIsDirty(true);
+    if (command === 'fontName' && value && editorRef.current) {
+      // Apply font family directly to the editor
+      editorRef.current.style.fontFamily = value;
+      setIsDirty(true);
+    } else {
+      document.execCommand(command, false, value || undefined);
+      setIsDirty(true);
+    }
     editorRef.current?.focus();
   }, [setIsDirty]);
 

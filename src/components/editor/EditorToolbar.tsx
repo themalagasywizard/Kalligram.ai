@@ -16,6 +16,7 @@ import {
   Heading1,
   Type,
   Maximize,
+  ChevronDown,
 } from 'lucide-react';
 
 interface EditorToolbarProps {
@@ -24,6 +25,26 @@ interface EditorToolbarProps {
 
 export function EditorToolbar({ onCommand }: EditorToolbarProps) {
   const [activeFontSize, setActiveFontSize] = useState<string>('3');
+  const [selectedFont, setSelectedFont] = useState<string>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem('selectedFont') || 'Merriweather' : 'Merriweather'
+  );
+
+  const fontOptions = [
+    { name: 'Merriweather', value: 'Merriweather, serif', category: 'Serif' },
+    { name: 'Crimson Text', value: 'Crimson Text, serif', category: 'Serif' },
+    { name: 'Lato', value: 'Lato, sans-serif', category: 'Sans Serif' },
+    { name: 'Open Sans', value: 'Open Sans, sans-serif', category: 'Sans Serif' },
+    { name: 'Roboto', value: 'Roboto, sans-serif', category: 'Sans Serif' },
+    { name: 'Montserrat', value: 'Montserrat, sans-serif', category: 'Sans Serif' },
+    { name: 'Poppins', value: 'Poppins, sans-serif', category: 'Sans Serif' },
+    { name: 'Nunito', value: 'Nunito, sans-serif', category: 'Sans Serif' },
+    { name: 'Inter', value: 'Inter, sans-serif', category: 'Sans Serif' },
+    { name: 'Source Sans Pro', value: 'Source Sans Pro, sans-serif', category: 'Sans Serif' },
+    { name: 'Times New Roman', value: 'Times New Roman, serif', category: 'System' },
+    { name: 'Arial', value: 'Arial, sans-serif', category: 'System' },
+    { name: 'Georgia', value: 'Georgia, serif', category: 'System' },
+    { name: 'Verdana', value: 'Verdana, sans-serif', category: 'System' },
+  ];
 
   const handleBold = () => onCommand('bold');
   const handleItalic = () => onCommand('italic');
@@ -32,6 +53,12 @@ export function EditorToolbar({ onCommand }: EditorToolbarProps) {
   const handleFontSize = (size: string) => {
     setActiveFontSize(size);
     onCommand('fontSize', size);
+  };
+
+  const handleFontChange = (fontValue: string, fontName: string) => {
+    setSelectedFont(fontName);
+    localStorage.setItem('selectedFont', fontName);
+    onCommand('fontName', fontValue);
   };
 
   const handleFullScreen = () => {
@@ -121,6 +148,42 @@ export function EditorToolbar({ onCommand }: EditorToolbarProps) {
             <DropdownMenuItem onClick={() => handleFontSize('7')}>
               Extra Large
             </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-9 px-3 gap-2">
+                  <Type className="h-4 w-4" />
+                  <span className="text-sm font-medium">{selectedFont}</span>
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Font Family</p>
+            </TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="start" className="w-56">
+            {fontOptions.map((font) => (
+              <DropdownMenuItem
+                key={font.name}
+                onClick={() => handleFontChange(font.value, font.name)}
+                className="cursor-pointer"
+              >
+                <span
+                  style={{ fontFamily: font.value }}
+                  className="flex-1"
+                >
+                  {font.name}
+                </span>
+                <span className="text-xs text-muted-foreground ml-2">
+                  {font.category}
+                </span>
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
 
