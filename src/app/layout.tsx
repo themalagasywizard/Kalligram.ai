@@ -16,7 +16,8 @@ export const metadata: Metadata = {
   title: "Kalligram — AI Writing Assistant",
   description: "Write your book faster with an AI that keeps your voice.",
   icons: {
-    icon: "/Logo.png",
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
   },
 };
 
