@@ -61,7 +61,16 @@ export function Editor() {
       // Only set content on the first page (editable one)
       const firstPage = editorRef.current;
       if (firstPage) {
-        firstPage.innerHTML = currentChapter.content || '<p class="mb-4">Start writing your story here...</p>';
+        // Create the title element
+        const titleElement = document.createElement('h1');
+        titleElement.className = 'text-2xl font-bold text-primary mb-6 text-center';
+        titleElement.textContent = currentChapter.title;
+
+        // Set the content
+        const content = currentChapter.content || '<p class="mb-4">Start writing your story here...</p>';
+
+        // Combine title and content
+        firstPage.innerHTML = titleElement.outerHTML + content;
       }
     }
   }, [currentChapter?.id]); // Only update when chapter changes
@@ -133,9 +142,6 @@ export function Editor() {
         <div className="max-w-4xl mx-auto">
           {currentChapter ? (
             <>
-              <h2 className="text-3xl font-bold text-primary mb-6">
-                {currentChapter.title}
-              </h2>
               {/* A4 Pages Container */}
               <div className="space-y-8">
                 {pages.map((pageNum, index) => (
@@ -167,10 +173,10 @@ export function Editor() {
                         widows: 3
                       }}
                     >
-                      {/* Content is loaded via useEffect for the first page only */}
+                      {/* Title and content are loaded via useEffect for the first page only */}
                     </div>
-                    {/* Page number indicator */}
-                    <div className="absolute bottom-4 right-8 text-sm text-gray-400 dark:text-gray-600">
+                    {/* Page number indicator - moved to left corner */}
+                    <div className="absolute bottom-4 left-8 text-sm text-gray-400 dark:text-gray-600">
                       Page {pageNum}
                     </div>
                   </div>
