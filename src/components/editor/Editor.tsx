@@ -182,68 +182,49 @@ export function Editor() {
         <div className="max-w-4xl mx-auto">
           {currentChapter ? (
             <>
-              {/* A4 Page Container with Visual Pagination */}
-              <div className="relative">
-                <div
-                  ref={editorRef}
-                  contentEditable
-                  suppressContentEditableWarning
-                  onInput={handleInput}
-                  className={cn(
-                    "prose prose-lg dark:prose-invert max-w-none",
-                    "focus:outline-none",
-                    "font-serif leading-relaxed",
-                    // A4 dimensions: 210mm x 297mm = ~595px x ~842px at 72 DPI
-                    // Using CSS inches for better accuracy: 8.27in x 11.69in
-                    "w-[8.27in]",
-                    "min-h-[11.69in]",
-                    "mx-auto",
-                    "bg-white dark:bg-gray-900",
-                    "shadow-lg border border-gray-200 dark:border-gray-700",
+              {/* Separate A4 Pages with 3px gaps */}
+              <div className="space-y-[3px]">
+                {pages.map((pageNum, index) => (
+                  <div key={pageNum} className="relative">
+                    <div
+                      ref={index === 0 ? editorRef : undefined}
+                      contentEditable={index === 0}
+                      suppressContentEditableWarning
+                      onInput={index === 0 ? handleInput : undefined}
+                      className={cn(
+                        "prose prose-lg dark:prose-invert max-w-none",
+                        "focus:outline-none",
+                        "font-serif leading-relaxed",
+                        // A4 dimensions: 210mm x 297mm = ~595px x ~842px at 72 DPI
+                        // Using CSS inches for better accuracy: 8.27in x 11.69in
+                        "w-[8.27in] h-[11.69in]",
+                        "mx-auto",
+                        "bg-white dark:bg-gray-900",
+                        "shadow-lg border border-gray-200 dark:border-gray-700",
                         "px-[1in] py-[1.25in]", // Print-safe margins: 1in sides, 1.25in top/bottom
-                    "relative",
-                    // CSS for page breaks - content flows naturally with page-like breaks
-                    "break-inside-avoid",
-                    "page-break-inside-avoid"
-                  )}
-                  style={{
-                    fontFamily: "'Merriweather', serif",
-                    lineHeight: 1.8,
-                    // Ensure content breaks properly
-                    orphans: 3,
-                    widows: 3,
-                    // Allow content to grow beyond single page height
-                    maxHeight: 'none',
-                    height: 'auto'
-                  }}
-                >
-                  {/* Title and content are loaded via useEffect */}
-                </div>
+                        "relative",
+                        "overflow-hidden"
+                      )}
+                      style={{
+                        fontFamily: "'Merriweather', serif",
+                        lineHeight: 1.8,
+                        // Ensure content breaks properly
+                        orphans: 3,
+                        widows: 3
+                      }}
+                    >
+                      {/* Title and content are loaded via useEffect for the first page only */}
+                      {index === 0 && (
+                        <div>
+                          {/* Content will be loaded here */}
+                        </div>
+                      )}
+                    </div>
 
-                {/* Page separators - 2px gap */}
-                {Array.from({ length: Math.max(1, pages.length - 1) }, (_, i) => (
-                  <div
-                    key={i}
-                    className="absolute w-full"
-                    style={{
-                      top: `${(i + 1) * 11.69}in`,
-                      marginTop: '1.25in', // Account for new top padding
-                      height: '2px', // 2px separation between pages
-                      backgroundColor: 'transparent' // No visual separator, just spacing
-                    }}
-                  />
-                ))}
-
-                    {/* Page numbers */}
-                {pages.map((pageNum) => (
-                  <div
-                    key={pageNum}
-                    className="absolute bottom-[1.25in] left-[1in] text-sm text-gray-400 dark:text-gray-600"
-                    style={{
-                      top: `${(pageNum - 1) * 11.69 + 10.44}in` // Position at bottom of each page accounting for new margins
-                    }}
-                  >
-                    Page {pageNum}
+                    {/* Page number */}
+                    <div className="absolute bottom-[1.25in] left-[1in] text-sm text-gray-400 dark:text-gray-600">
+                      Page {pageNum}
+                    </div>
                   </div>
                 ))}
               </div>
