@@ -143,9 +143,20 @@ export function Editor() {
   }, []);
 
   const execCommand = useCallback((command: string, value?: string) => {
-    if (command === 'fontName' && value && editorRef.current) {
-      // Apply font family directly to the editor
-      editorRef.current.style.fontFamily = value;
+    if (command === 'fontName' && value) {
+      // Check if there's selected text
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+        // Apply font to selected text only
+        document.execCommand('fontName', false, value);
+      } else if (editorRef.current) {
+        // No selection, apply to entire editor
+        editorRef.current.style.fontFamily = value;
+      }
+      setIsDirty(true);
+    } else if (command === 'fontSize' && value) {
+      // fontSize should already respect selections with document.execCommand
+      document.execCommand(command, false, value);
       setIsDirty(true);
     } else {
       document.execCommand(command, false, value || undefined);

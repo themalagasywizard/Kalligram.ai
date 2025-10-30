@@ -136,18 +136,20 @@ export function EditorToolbar({ onCommand }: EditorToolbarProps) {
             </TooltipContent>
           </Tooltip>
           <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => handleFontSize('1')}>
-              Small
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleFontSize('3')}>
-              Normal
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleFontSize('5')}>
-              Large
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleFontSize('7')}>
-              Extra Large
-            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleFontSize('1')}>8 pt</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleFontSize('2')}>9 pt</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleFontSize('3')}>10 pt</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleFontSize('4')}>11 pt</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleFontSize('5')}>12 pt</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleFontSize('6')}>14 pt</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleFontSize('7')}>16 pt</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleFontSize('8')}>18 pt</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleFontSize('9')}>20 pt</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleFontSize('10')}>24 pt</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleFontSize('11')}>28 pt</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleFontSize('12')}>36 pt</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleFontSize('13')}>48 pt</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleFontSize('14')}>72 pt</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
