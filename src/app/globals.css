@@ -76,10 +76,7 @@
     margin-bottom: 30mm !important; /* Space between pages */
   }
 
-  /* Hide visual page border separators when printing */
-  .border-solid.border-t-4 {
-    display: none !important;
-  }
+  /* Page separators are transparent, no visual elements to hide */
 
   /* Hide page numbers when printing */
   .text-gray-400, .dark\:text-gray-600 {

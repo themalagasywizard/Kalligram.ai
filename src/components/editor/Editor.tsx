@@ -209,15 +209,16 @@ export function Editor() {
                   {/* Title and content are loaded via useEffect */}
                 </div>
 
-                {/* Page border separators */}
+                {/* Page separators - 2px gap */}
                 {Array.from({ length: Math.max(1, pages.length - 1) }, (_, i) => (
                   <div
                     key={i}
-                    className="absolute w-full border-t-4 border-solid border-gray-400 dark:border-gray-500 bg-gray-100 dark:bg-gray-800"
+                    className="absolute w-full"
                     style={{
                       top: `${(i + 1) * 11.69}in`,
                       marginTop: '1.25in', // Account for new top padding
-                      height: '8px' // Add some height to create a clear separation zone
+                      height: '2px', // 2px separation between pages
+                      backgroundColor: 'transparent' // No visual separator, just spacing
                     }}
                   />
                 ))}
