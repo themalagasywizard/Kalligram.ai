@@ -130,12 +130,13 @@
   background-color: #fafafa;
   padding: 0.5rem 1rem;
   border-radius: 0 4px 4px 0;
-  font-style: normal;
+  font-style: italic;
   color: inherit;
 }
 
 .ProseMirror blockquote p {
   margin: 0.5rem 0;
+  font-style: italic;
 }
 
 /* Dark mode blockquote styling */
@@ -145,13 +146,6 @@
 }
 
 /* List styling */
-.ProseMirror ul {
-  padding-left: 1.5rem;
-}
-
-.ProseMirror ol {
-  padding-left: 1.5rem;
-}
 
 .ProseMirror li {
   margin: 0.25rem 0;
@@ -159,6 +153,30 @@
 
 .ProseMirror li p {
   margin: 0;
+}
+
+/* Bullet lists */
+.ProseMirror ul[data-type="bulletList"] {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+}
+
+.ProseMirror ul[data-type="bulletList"] li {
+  display: list-item;
+  list-style-type: disc;
+  list-style-position: outside;
+}
+
+/* Numbered lists */
+.ProseMirror ol[data-type="orderedList"] {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+}
+
+.ProseMirror ol[data-type="orderedList"] li {
+  display: list-item;
+  list-style-type: decimal;
+  list-style-position: outside;
 }
 
 /* Task list styling */

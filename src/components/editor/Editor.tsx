@@ -22,6 +22,9 @@ import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableHeader } from '@tiptap/extension-table-header';
 import { TableCell } from '@tiptap/extension-table-cell';
+import { ListItem } from '@tiptap/extension-list-item';
+import { BulletList } from '@tiptap/extension-bullet-list';
+import { OrderedList } from '@tiptap/extension-ordered-list';
 
 // Callout block
 const Callout = Node.create({
@@ -318,7 +321,12 @@ export function Editor() {
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] },
+        bulletList: false,
+        orderedList: false,
+        listItem: false,
+      }),
       Underline,
       Link.configure({ openOnClick: true, autolink: true }),
       Highlight,
@@ -327,6 +335,10 @@ export function Editor() {
       TaskList,
       TaskItem.configure({ nested: true }),
       Image.configure({ inline: false, allowBase64: true }),
+      // Lists
+      BulletList,
+      OrderedList,
+      ListItem,
       // Tables
       Table.configure({ resizable: true }),
       TableRow,
