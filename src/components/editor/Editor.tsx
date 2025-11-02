@@ -441,7 +441,10 @@ export function Editor() {
     },
     onUpdate() {
       setIsDirty(true);
-      queueMicrotask(() => recomputePagination());
+      queueMicrotask(() => {
+        recomputePagination();
+        checkContentOverflow();
+      });
     },
   });
 
@@ -703,6 +706,8 @@ export function Editor() {
   };
 
   const reflowLock = useRef(false);
+  const overflowCheckLock = useRef(false);
+  const [contentZoneHeightPx, setContentZoneHeightPx] = useState(0);
 
   const recomputePagination = () => {
     const size = (currentProject?.page_size || 'A4');
@@ -721,6 +726,12 @@ export function Editor() {
 
     // Effective content height = page height - margins - bleed zones
     const contentH = Math.max(1, pageH - topMargin - bottomMargin - topBleed - bottomBleed);
+    
+    // Lock content zone a few lines above bottom margin (approx 3 lines = 72px)
+    const contentZoneLockBuffer = Math.round(0.75 * 96); // 0.75 inch buffer (3 lines)
+    const lockedContentH = contentH - contentZoneLockBuffer;
+    setContentZoneHeightPx(lockedContentH);
+    
     setPageHeightPx(pageH);
     const contentEl = contentFrameRef.current;
     if (!contentEl) return;
@@ -731,29 +742,73 @@ export function Editor() {
     window.dispatchEvent(new CustomEvent('pagination-update', { detail: { count } }));
   };
 
-  // Compute and enforce true page breaks by inserting PageBreak nodes at block boundaries
-  const updatePageBreaks = () => {
-    if (!editor || reflowLock.current) return;
+  // Monitor content overflow and enforce page boundaries
+  const checkContentOverflow = () => {
+    if (!editor || overflowCheckLock.current || contentZoneHeightPx === 0) return;
     const view = editor.view;
     const root = contentFrameRef.current?.querySelector('.ProseMirror') as HTMLElement | null;
     if (!root) return;
 
-    // Determine content height per page (accounting for margins and bleed zones)
-    const size = (currentProject?.page_size || 'A4');
-    const orient = (currentProject?.orientation || 'portrait');
-    const sizes = { A4: { w: 8.27, h: 11.69 }, A3: { w: 11.69, h: 16.54 } } as const;
-    const dims = sizes[size];
-    const heightIn = orient === 'portrait' ? dims.h : dims.w;
-    const pageH = Math.round(heightIn * 96);
+    overflowCheckLock.current = true;
+    const contentH = contentZoneHeightPx;
+    const topMarginBleed = Math.round(1.125 * 96);
+    
+    const children = Array.from(root.children) as HTMLElement[];
+    const state = view.state;
+    const breakType = state.schema.nodes['pageBreak'];
+    if (!breakType) {
+      overflowCheckLock.current = false;
+      return;
+    }
 
-    // Account for margins and bleed zones
-    const topMargin = Math.round(1 * 96); // 1 inch top margin
-    const bottomMargin = Math.round(1 * 96); // 1 inch bottom margin
-    const topBleed = Math.round(0.125 * 96); // 0.125 inch top bleed
-    const bottomBleed = Math.round(0.125 * 96); // 0.125 inch bottom bleed
+    let accum = 0;
+    let needsBreak = false;
+    let breakPosition: number | null = null;
 
-    // Effective content height = page height - margins - bleed zones
-    const contentH = Math.max(1, pageH - topMargin - bottomMargin - topBleed - bottomBleed);
+    for (const el of children) {
+      if (el.matches('hr[data-page-break="true"]')) {
+        accum = 0;
+        continue;
+      }
+      
+      const rect = el.getBoundingClientRect();
+      const h = Math.ceil(rect.height);
+      
+      if (accum + h > contentH && accum > 0) {
+        // This element exceeds the content zone
+        try {
+          const pos = view.posAtDOM(el, 0);
+          if (typeof pos === 'number' && pos > 0) {
+            needsBreak = true;
+            breakPosition = pos;
+            break;
+          }
+        } catch {
+          // Continue if we can't get position
+        }
+      }
+      
+      accum += h;
+    }
+
+    if (needsBreak && breakPosition !== null) {
+      const tr = state.tr;
+      tr.insert(breakPosition, breakType.create());
+      view.dispatch(tr);
+    }
+    
+    overflowCheckLock.current = false;
+  };
+
+  // Compute and enforce true page breaks by inserting PageBreak nodes at block boundaries
+  const updatePageBreaks = () => {
+    if (!editor || reflowLock.current || contentZoneHeightPx === 0) return;
+    const view = editor.view;
+    const root = contentFrameRef.current?.querySelector('.ProseMirror') as HTMLElement | null;
+    if (!root) return;
+
+    // Use the locked content zone height instead of recalculating
+    const contentH = contentZoneHeightPx;
 
     // Remove existing breaks positions from measurement
     const children = Array.from(root.children) as HTMLElement[];
@@ -840,7 +895,7 @@ export function Editor() {
     if (contentFrameRef.current) ro.observe(contentFrameRef.current);
     const int = setInterval(updatePageBreaks, 500);
     return () => { ro.disconnect(); clearInterval(int); };
-  }, [currentProject?.page_size, currentProject?.orientation]);
+  }, [currentProject?.page_size, currentProject?.orientation, contentZoneHeightPx]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -853,6 +908,75 @@ export function Editor() {
     window.addEventListener('scroll-to-page', handler as any);
     return () => window.removeEventListener('scroll-to-page', handler as any);
   }, [pageHeightPx]);
+
+  // Intercept Enter key and enforce content zone boundaries
+  useEffect(() => {
+    if (!editor || contentZoneHeightPx === 0) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter') return;
+      
+      const view = editor.view;
+      const state = view.state;
+      const { selection } = state;
+      const root = contentFrameRef.current?.querySelector('.ProseMirror') as HTMLElement | null;
+      if (!root) return;
+
+      // Find the current block element
+      const domAtPos = view.domAtPos(selection.from);
+      let currentBlock = domAtPos.node as HTMLElement;
+      if (currentBlock.nodeType === Node.TEXT_NODE) {
+        currentBlock = currentBlock.parentElement!;
+      }
+      while (currentBlock && !currentBlock.matches('p, h1, h2, h3, h4, h5, h6, li, blockquote, pre, div[data-type="callout"], details[data-type="toggle"]') && currentBlock !== root) {
+        currentBlock = currentBlock.parentElement!;
+      }
+      if (!currentBlock || currentBlock === root) return;
+
+      // Calculate which page we're on
+      const blockRect = currentBlock.getBoundingClientRect();
+      const rootRect = root.getBoundingClientRect();
+      const relativeTop = blockRect.top - rootRect.top;
+      
+      // Determine current page index
+      const topMarginBleed = Math.round(1.125 * 96);
+      const currentPageIndex = Math.floor(relativeTop / pageHeightPx);
+      const pageStartY = currentPageIndex * pageHeightPx;
+      const contentStartY = pageStartY + topMarginBleed;
+      const contentEndY = contentStartY + contentZoneHeightPx;
+      
+      // Check if current block bottom + new line height would exceed content zone
+      const blockBottom = relativeTop + blockRect.height;
+      const estimatedNewLineHeight = 24; // Approximate line height in px
+      
+      if (blockBottom + estimatedNewLineHeight > contentEndY) {
+        // Prevent default Enter, insert page break and move caret to next page
+        e.preventDefault();
+        
+        const breakType = state.schema.nodes['pageBreak'];
+        if (!breakType) return;
+        
+        // Insert page break after current position
+        const tr = state.tr;
+        const insertPos = selection.to;
+        tr.insert(insertPos, breakType.create());
+        
+        // Create new paragraph after page break
+        const paragraphType = state.schema.nodes['paragraph'];
+        if (paragraphType) {
+          tr.insert(insertPos + 1, paragraphType.create());
+          tr.setSelection(state.selection.constructor.near(tr.doc.resolve(insertPos + 2)));
+        }
+        
+        view.dispatch(tr);
+        return;
+      }
+    };
+
+    const editorDom = editor.view.dom;
+    editorDom.addEventListener('keydown', handleKeyDown);
+    return () => editorDom.removeEventListener('keydown', handleKeyDown);
+  }, [editor, contentZoneHeightPx, pageHeightPx]);
 
   // Ensure cursor placement respects content boundaries
   useEffect(() => {
