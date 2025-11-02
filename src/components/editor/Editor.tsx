@@ -340,7 +340,12 @@ export function Editor() {
       OrderedList,
       ListItem,
       // Tables
-      Table.configure({ resizable: true }),
+      Table.configure({
+        resizable: true,
+        HTMLAttributes: {
+          class: 'border-collapse table-auto w-full',
+        },
+      }),
       TableRow,
       TableHeader,
       TableCell,
@@ -409,6 +414,37 @@ export function Editor() {
     window.addEventListener('editor-insert-text', onInsert as any);
     return () => window.removeEventListener('editor-insert-text', onInsert as any);
   }, [editor, setIsDirty]);
+
+  // Table editing keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!editor) return;
+
+      // Delete table with Backspace when table is selected
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        const { state } = editor;
+        const { selection } = state;
+
+        // Check if selection is inside a table
+        let isInTable = false;
+        state.doc.nodesBetween(selection.from, selection.to, (node) => {
+          if (node.type.name === 'table') {
+            isInTable = true;
+            return false;
+          }
+        });
+
+        if (isInTable) {
+          e.preventDefault();
+          editor.chain().focus().deleteTable().run();
+          return;
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [editor]);
 
   const execCommand = useCallback((command: string, value?: string) => {
     if (!editor) return;
