@@ -133,13 +133,14 @@ const SlashCommand = Extension.create({
           return all.filter(i => i.title.toLowerCase().includes(query.toLowerCase()));
         },
         command: ({ editor, range, props }) => {
-          // Remove the "/" trigger and query first
-          editor.chain().focus().deleteRange(range).run();
+          // Remember insertion point, then remove the "/" trigger and query
+          const insertPos = range.from;
+          editor.chain().focus().deleteRange(range).setTextSelection(insertPos).run();
 
           if ((props as any).title === 'Table') {
             // Open dimension picker near caret
             const view = editor.view;
-            const coords = view.coordsAtPos(editor.state.selection.from);
+            const coords = view.coordsAtPos(insertPos);
             const grid = document.createElement('div');
             grid.style.position = 'fixed';
             grid.style.left = coords.left + 'px';
@@ -169,7 +170,7 @@ const SlashCommand = Extension.create({
                   });
                 });
                 cell.addEventListener('click', () => {
-                  editor.chain().focus().insertTable({ rows: r, cols: c, withHeaderRow: true }).run();
+                  editor.chain().focus().setTextSelection(insertPos).insertTable({ rows: r, cols: c, withHeaderRow: true }).run();
                   cleanup();
                 });
                 row.appendChild(cell);
@@ -190,7 +191,8 @@ const SlashCommand = Extension.create({
             return;
           }
 
-          // Default: run the selected action
+          // Default: set caret back to insertion point and run the action
+          editor.chain().focus().setTextSelection(insertPos).run();
           (props as any).run?.();
         },
         render: () => {
