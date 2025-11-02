@@ -72,17 +72,12 @@ export function EditorToolbar({ onCommand, editor, setIsDirty }: EditorToolbarPr
 
   const handleFontSize = (size: string) => {
     setActiveFontSize(size);
+    // Store font size preference and apply to editor container
+    localStorage.setItem('selectedFontSize', size);
     if (editor) {
-      // Apply font size to selected text using HTML styling
-      const { from, to } = editor.state.selection;
-      if (from !== to) {
-        // Has selection - wrap in span with font size
-        const fontSize = `${size}px`;
-        editor.chain().focus().setMark('textStyle', { fontSize }).run();
-      } else {
-        // No selection - apply to current paragraph
-        editor.chain().focus().setNode('paragraph', { style: `font-size: ${size}px;` }).run();
-      }
+      // Apply font size to the editor container
+      const editorElement = editor.view.dom;
+      editorElement.style.fontSize = `${size}px`;
     }
     setIsDirty(true);
   };
