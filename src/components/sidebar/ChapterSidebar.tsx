@@ -16,6 +16,7 @@ interface ChapterSidebarProps {
   onRenameChapter: (chapterId: string, newTitle: string) => Promise<void>;
   onDeleteChapter: (chapterId: string) => Promise<void>;
   onReorderChapters: (updates: Array<{ id: string; order_index: number }>) => Promise<void>;
+  pagesCount?: number; // if provided, show Pages view instead
 }
 
 export function ChapterSidebar({
@@ -26,7 +27,8 @@ export function ChapterSidebar({
   onAddChapter,
   onRenameChapter,
   onDeleteChapter,
-  onReorderChapters
+  onReorderChapters,
+  pagesCount
 }: ChapterSidebarProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
 
@@ -82,42 +84,57 @@ export function ChapterSidebar({
       {/* Header aligned with toolbar */}
       <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex items-center justify-between gap-2 px-4 py-2">
-          <h3 className="font-semibold text-sm">Chapters</h3>
-          <Button
-            onClick={onAddChapter}
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9"
-            title="Add Chapter"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
+          <h3 className="font-semibold text-sm">{pagesCount ? 'Pages' : 'Chapters'}</h3>
+          {!pagesCount && (
+            <Button
+              onClick={onAddChapter}
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              title="Add Chapter"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="p-2 space-y-1">
-          {chapters.length === 0 ? (
-            <div className="text-center text-muted-foreground text-sm py-8">
-              No chapters yet
-            </div>
-          ) : (
-            chapters.map((chapter) => (
-              <ChapterItem
-                key={chapter.id}
-                chapter={chapter}
-                isActive={chapter.id === currentChapterId}
-                onSelect={onSelectChapter}
-                onRename={onRenameChapter}
-                onDelete={onDeleteChapter}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onDrop={handleDrop}
-                isDragging={draggedId === chapter.id}
-              />
-            ))
-          )}
-        </div>
+        {pagesCount ? (
+          <div className="p-2 grid grid-cols-2 gap-2">
+            {Array.from({ length: pagesCount }).map((_, i) => (
+              <button
+                key={i}
+                className="relative aspect-[8.27/11.69] w-full bg-background border rounded hover:border-primary text-xs"
+                onClick={() => window.dispatchEvent(new CustomEvent('scroll-to-page', { detail: { page: i } }))}
+                title={`Page ${i+1}`}
+              >
+                <span className="absolute bottom-1 right-1 text-[10px] text-muted-foreground">{i+1}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="p-2 space-y-1">
+            {chapters.length === 0 ? (
+              <div className="text-center text-muted-foreground text-sm py-8">No chapters yet</div>
+            ) : (
+              chapters.map((chapter) => (
+                <ChapterItem
+                  key={chapter.id}
+                  chapter={chapter}
+                  isActive={chapter.id === currentChapterId}
+                  onSelect={onSelectChapter}
+                  onRename={onRenameChapter}
+                  onDelete={onDeleteChapter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  onDrop={handleDrop}
+                  isDragging={draggedId === chapter.id}
+                />
+              ))
+            )}
+          </div>
+        )}
       </ScrollArea>
 
       {/* Word Count Footer */}

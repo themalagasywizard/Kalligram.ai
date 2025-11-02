@@ -31,6 +31,7 @@ function EditorPageContent() {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [pagesCount, setPagesCount] = useState<number>(0);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
 
   // Load project and chapters on mount
@@ -198,6 +199,16 @@ function EditorPageContent() {
     setExportDialogOpen(true);
   }, [currentProject]);
 
+  // Listen for pagination updates from editor
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const count = (e as CustomEvent).detail?.count as number;
+      if (Number.isInteger(count)) setPagesCount(count);
+    };
+    window.addEventListener('pagination-update', handler as any);
+    return () => window.removeEventListener('pagination-update', handler as any);
+  }, []);
+
   // Auto-save effect
   useEffect(() => {
     if (!isDirty || !currentChapter) return;
@@ -249,6 +260,7 @@ function EditorPageContent() {
             onRenameChapter={handleRenameChapter}
             onDeleteChapter={handleDeleteChapter}
             onReorderChapters={handleReorderChapters}
+            pagesCount={pagesCount || undefined}
           />
 
           <main className="flex-1 overflow-hidden">

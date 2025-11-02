@@ -350,6 +350,13 @@ export function Editor() {
     return `${title}${body}`;
   }, [currentChapter?.id]);
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const pageContainerRef = useRef<HTMLDivElement>(null);
+  const contentFrameRef = useRef<HTMLDivElement>(null);
+  const [pageCount, setPageCount] = useState(1);
+  const [pageHeightPx, setPageHeightPx] = useState(0);
+  const bleedPx = Math.round(0.125 * 96); // 0.125in bleed
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -419,6 +426,7 @@ export function Editor() {
     },
     onUpdate() {
       setIsDirty(true);
+      queueMicrotask(() => recomputePagination());
     },
   });
 
@@ -661,6 +669,44 @@ export function Editor() {
   };
   const computeContentPadding = () => ({ padding: '1in' } as React.CSSProperties);
 
+  const recomputePagination = () => {
+    const size = (currentProject?.page_size || 'A4');
+    const orient = (currentProject?.orientation || 'portrait');
+    const sizes = { A4: { w: 8.27, h: 11.69 }, A3: { w: 11.69, h: 16.54 } } as const;
+    const dims = sizes[size];
+    const widthIn = orient === 'portrait' ? dims.w : dims.h;
+    const heightIn = orient === 'portrait' ? dims.h : dims.w;
+    const pageH = Math.round(heightIn * 96);
+    const contentH = Math.max(1, pageH - 2 * Math.round(1 * 96)); // minus padding top/bottom (1in)
+    setPageHeightPx(pageH);
+    const contentEl = contentFrameRef.current;
+    if (!contentEl) return;
+    const total = contentEl.scrollHeight;
+    const count = Math.max(1, Math.ceil(total / contentH));
+    setPageCount(count);
+    // Broadcast to sidebar
+    window.dispatchEvent(new CustomEvent('pagination-update', { detail: { count } }));
+  };
+
+  useEffect(() => {
+    recomputePagination();
+    const ro = new ResizeObserver(() => recomputePagination());
+    if (contentFrameRef.current) ro.observe(contentFrameRef.current);
+    return () => ro.disconnect();
+  }, [currentProject?.page_size, currentProject?.orientation]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const page = (e as CustomEvent).detail?.page as number;
+      if (!Number.isInteger(page)) return;
+      if (scrollRef.current) {
+        scrollRef.current.scrollTo({ top: page * pageHeightPx, behavior: 'smooth' });
+      }
+    };
+    window.addEventListener('scroll-to-page', handler as any);
+    return () => window.removeEventListener('scroll-to-page', handler as any);
+  }, [pageHeightPx]);
+
   return (
     <div className="flex flex-col h-full">
       <EditorToolbar onCommand={execCommand} editor={editor as unknown as TTEditor | null} />
@@ -677,12 +723,37 @@ export function Editor() {
         setIsDirty={setIsDirty}
       />
       
-      <div className="flex-1 overflow-y-auto px-8 pt-6 pb-0">
+      <div className="flex-1 overflow-y-auto px-8 pt-6 pb-0" ref={scrollRef}>
         <div className="mx-auto min-h-full">
           {editor ? (
-            <div className="mx-auto shadow border bg-white dark:bg-gray-900" style={computePageStyle()}>
-              <div className="w-full h-full" style={computeContentPadding()}>
-                <EditorContent editor={editor} />
+            <div className="relative mx-auto" style={computePageStyle()} ref={pageContainerRef}>
+              {/* Page overlays for border and bleed per page */}
+              {Array.from({ length: pageCount }).map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute left-0 right-0 border border-gray-300 dark:border-gray-700 bg-white/0"
+                  style={{
+                    top: `${i * pageHeightPx}px`,
+                    width: '100%',
+                    height: `${pageHeightPx}px`,
+                    boxShadow: 'inset 0 0 0 2px rgba(0,0,0,0.04)',
+                  }}
+                >
+                  {/* Bleed zone */}
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      boxShadow: `inset 0 ${bleedPx}px 0 0 rgba(255,0,0,0.15), inset 0 -${bleedPx}px 0 0 rgba(255,0,0,0.15)`
+                    }}
+                  />
+                </div>
+              ))}
+
+              {/* Content frame (scrolls vertically and increases page overlays) */}
+              <div className="absolute left-0 top-0 w-full" style={{ minHeight: `${pageCount * pageHeightPx}px` }}>
+                <div className="w-full" style={computeContentPadding()} ref={contentFrameRef}>
+                  <EditorContent editor={editor} />
+                </div>
               </div>
             </div>
           ) : null}
