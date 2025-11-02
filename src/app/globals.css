@@ -155,50 +155,78 @@
   margin: 0;
 }
 
-/* Bullet lists */
+/* Bullet lists - comprehensive styling with fallbacks */
+.ProseMirror ul,
 .ProseMirror ul[data-type="bulletList"] {
-  list-style-type: disc;
-  padding-left: 1.5rem;
-  color: #000000;
+  list-style-type: disc !important;
+  list-style-position: outside !important;
+  padding-left: 1.5rem !important;
+  margin: 0 !important;
 }
 
+.ProseMirror ul li,
 .ProseMirror ul[data-type="bulletList"] li {
-  display: list-item;
-  list-style-type: disc;
-  list-style-position: outside;
-  color: inherit;
+  list-style-type: disc !important;
+  list-style-position: outside !important;
+  display: list-item !important;
+  margin: 0.25rem 0 !important;
+  padding-left: 0 !important;
+  color: #000000 !important;
+  position: relative !important;
 }
 
-.ProseMirror ul[data-type="bulletList"] li::marker {
-  color: #000000;
+/* Add bullet via pseudo-element as fallback */
+.ProseMirror ul li:before,
+.ProseMirror ul[data-type="bulletList"] li:before {
+  content: "•" !important;
+  position: absolute !important;
+  left: -1rem !important;
+  color: #000000 !important;
+  font-weight: bold !important;
 }
 
 /* Dark mode bullet lists */
-.dark .ProseMirror ul[data-type="bulletList"] li::marker {
-  color: #ffffff;
+.dark .ProseMirror ul li:before,
+.dark .ProseMirror ul[data-type="bulletList"] li:before {
+  color: #ffffff !important;
 }
 
-/* Numbered lists */
+/* Numbered lists - comprehensive styling with fallbacks */
+.ProseMirror ol,
 .ProseMirror ol[data-type="orderedList"] {
-  list-style-type: decimal;
-  padding-left: 1.5rem;
-  color: #000000;
+  list-style-type: decimal !important;
+  list-style-position: outside !important;
+  padding-left: 1.5rem !important;
+  margin: 0 !important;
+  counter-reset: list-counter !important;
 }
 
+.ProseMirror ol li,
 .ProseMirror ol[data-type="orderedList"] li {
-  display: list-item;
-  list-style-type: decimal;
-  list-style-position: outside;
-  color: inherit;
+  list-style-type: decimal !important;
+  list-style-position: outside !important;
+  display: list-item !important;
+  margin: 0.25rem 0 !important;
+  padding-left: 0 !important;
+  color: #000000 !important;
+  position: relative !important;
 }
 
-.ProseMirror ol[data-type="orderedList"] li::marker {
-  color: #000000;
+/* Add numbers via counter as fallback */
+.ProseMirror ol li:before,
+.ProseMirror ol[data-type="orderedList"] li:before {
+  counter-increment: list-counter !important;
+  content: counter(list-counter) "." !important;
+  position: absolute !important;
+  left: -1.5rem !important;
+  color: #000000 !important;
+  font-weight: normal !important;
 }
 
 /* Dark mode numbered lists */
-.dark .ProseMirror ol[data-type="orderedList"] li::marker {
-  color: #ffffff;
+.dark .ProseMirror ol li:before,
+.dark .ProseMirror ol[data-type="orderedList"] li:before {
+  color: #ffffff !important;
 }
 
 /* Task list styling */
