@@ -17,6 +17,7 @@ import {
   Type,
   Maximize,
   ChevronDown,
+  Table,
 } from 'lucide-react';
 import type { Editor as TTEditor } from '@tiptap/react';
 
@@ -77,6 +78,65 @@ export function EditorToolbar({ onCommand, editor }: EditorToolbarProps) {
     }
   };
 
+  const handleInsertTable = () => {
+    if (!editor) return;
+
+    // Get current cursor position or end of document
+    const { from } = editor.state.selection;
+    const insertPos = from;
+
+    // Create grid picker overlay
+    const view = editor.view;
+    const coords = view.coordsAtPos(insertPos);
+    const grid = document.createElement('div');
+    grid.style.position = 'fixed';
+    grid.style.left = coords.left + 'px';
+    grid.style.top = (coords.bottom + 8) + 'px';
+    grid.className = 'z-50 rounded-md border bg-popover p-2 shadow-md';
+
+    const info = document.createElement('div');
+    info.className = 'text-xs text-muted-foreground mb-2';
+    info.textContent = '0 × 0';
+    grid.appendChild(info);
+
+    const rowsMax = 8; const colsMax = 8;
+    for (let r = 1; r <= rowsMax; r++) {
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      for (let c = 1; c <= colsMax; c++) {
+        const cell = document.createElement('div');
+        cell.className = 'm-[2px] h-5 w-5 rounded border bg-background';
+        cell.dataset.r = String(r);
+        cell.dataset.c = String(c);
+        cell.addEventListener('mouseenter', () => {
+          info.textContent = `${r} × ${c}`;
+          Array.from(grid.querySelectorAll('[data-r]')).forEach((el) => {
+            const rr = Number((el as HTMLElement).dataset.r);
+            const cc = Number((el as HTMLElement).dataset.c);
+            (el as HTMLElement).style.background = (rr <= r && cc <= c) ? 'var(--accent)' : 'var(--background)';
+          });
+        });
+        cell.addEventListener('click', () => {
+          editor.chain().focus().setTextSelection(insertPos).insertTable({ rows: r, cols: c, withHeaderRow: true }).run();
+          cleanup();
+        });
+        row.appendChild(cell);
+      }
+      grid.appendChild(row);
+    }
+
+    const cleanup = () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('click', onClickOutside, true);
+      grid.parentNode && grid.parentNode.removeChild(grid);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') cleanup(); };
+    const onClickOutside = (e: MouseEvent) => { if (!grid.contains(e.target as HTMLElement)) cleanup(); };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('click', onClickOutside, true);
+    document.body.appendChild(grid);
+  };
+
   return (
     <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
       <div className="flex items-center gap-2 px-4 py-2">
@@ -125,6 +185,22 @@ export function EditorToolbar({ onCommand, editor }: EditorToolbarProps) {
           </TooltipTrigger>
           <TooltipContent>
             <p>Heading</p>
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleInsertTable}
+              className="h-9 w-9"
+            >
+              <Table className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Insert Table</p>
           </TooltipContent>
         </Tooltip>
 

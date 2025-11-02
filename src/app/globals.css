@@ -121,3 +121,81 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Table styling */
+.ProseMirror table {
+  border-collapse: collapse;
+  margin: 0;
+  overflow: hidden;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.ProseMirror table td,
+.ProseMirror table th {
+  border: 1px solid #000000;
+  box-sizing: border-box;
+  min-width: 1em;
+  padding: 8px;
+  position: relative;
+  vertical-align: top;
+}
+
+.ProseMirror table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+  text-align: left;
+}
+
+.ProseMirror table .selectedCell:after {
+  background: rgba(200, 200, 255, 0.4);
+  content: "";
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+}
+
+.ProseMirror table .column-resize-handle {
+  background-color: #adf;
+  bottom: -2px;
+  pointer-events: none;
+  position: absolute;
+  right: -2px;
+  top: 0;
+  width: 4px;
+}
+
+.ProseMirror table p {
+  margin: 0;
+}
+
+.ProseMirror table .grip-column,
+.ProseMirror table .grip-row {
+  position: relative;
+}
+
+.ProseMirror table .grip-row {
+  border-left: 2px solid #ddd;
+  border-right: 2px solid #ddd;
+  content: "";
+  height: 100%;
+  left: -9999px;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+
+.ProseMirror table .grip-column {
+  border-bottom: 2px solid #ddd;
+  border-top: 2px solid #ddd;
+  content: "";
+  height: 100%;
+  left: 0;
+  position: absolute;
+  top: -9999px;
+  width: 100%;
+}
