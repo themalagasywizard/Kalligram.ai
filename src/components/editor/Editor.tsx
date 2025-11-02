@@ -13,7 +13,6 @@ export function Editor() {
   const [selectionRange, setSelectionRange] = useState<Range | null>(null);
   const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 });
   const [showPopup, setShowPopup] = useState(false);
-  const [pages, setPages] = useState<number[]>([1]); // Keep for page break visualization
 
   const countWords = useCallback((text: string): number => {
     const cleanText = text.replace(/<[^>]*>/g, '');
@@ -98,45 +97,6 @@ export function Editor() {
     }
   }, [currentChapter?.id]); // Only update when chapter changes
 
-  // Monitor content height and create pages dynamically
-  useEffect(() => {
-    const checkContentHeight = () => {
-      if (editorRef.current) {
-        const contentHeight = editorRef.current.scrollHeight;
-        const pageHeight = 11.69 * 96; // A4 height in pixels (11.69 inches * 96 DPI)
-        const requiredPages = Math.max(1, Math.ceil(contentHeight / pageHeight));
-
-        if (requiredPages !== pages.length) {
-          setPages(Array.from({ length: requiredPages }, (_, i) => i + 1));
-        }
-      }
-    };
-
-    // Check immediately and on content changes
-    checkContentHeight();
-
-    // Also check periodically in case content changes without triggering onInput
-    const interval = setInterval(checkContentHeight, 1000);
-
-    return () => clearInterval(interval);
-  }, [pages.length]);
-
-  // Also check when content changes
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (editorRef.current) {
-        const contentHeight = editorRef.current.scrollHeight;
-        const pageHeight = 11.69 * 96; // A4 height in pixels
-        const requiredPages = Math.max(1, Math.ceil(contentHeight / pageHeight));
-
-        if (requiredPages !== pages.length) {
-          setPages(Array.from({ length: requiredPages }, (_, i) => i + 1));
-        }
-      }
-    }, 100);
-
-    return () => clearTimeout(timeout);
-  }, [isDirty, pages.length]);
 
   const getContent = useCallback(() => {
     return editorRef.current?.innerHTML || '';
@@ -179,56 +139,20 @@ export function Editor() {
       />
       
       <div className="flex-1 overflow-y-auto px-8 pt-6 pb-0">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-3xl mx-auto">
           {currentChapter ? (
-            <>
-              {/* Separate A4 Pages with 3px gaps */}
-              <div className="space-y-[3px]">
-                {pages.map((pageNum, index) => (
-                  <div key={pageNum} className="relative">
-                    <div
-                      ref={index === 0 ? editorRef : undefined}
-                      contentEditable={index === 0}
-                      suppressContentEditableWarning
-                      onInput={index === 0 ? handleInput : undefined}
-                      className={cn(
-                        "prose prose-lg dark:prose-invert max-w-none",
-                        "focus:outline-none",
-                        "font-serif leading-relaxed",
-                        // A4 dimensions: 210mm x 297mm = ~595px x ~842px at 72 DPI
-                        // Using CSS inches for better accuracy: 8.27in x 11.69in
-                        "w-[8.27in] h-[11.69in]",
-                        "mx-auto",
-                        "bg-white dark:bg-gray-900",
-                        "shadow-lg border border-gray-200 dark:border-gray-700",
-                        "px-[1in] py-[1.25in]", // Print-safe margins: 1in sides, 1.25in top/bottom
-                        "relative",
-                        "overflow-hidden"
-                      )}
-                      style={{
-                        fontFamily: "'Merriweather', serif",
-                        lineHeight: 1.8,
-                        // Ensure content breaks properly
-                        orphans: 3,
-                        widows: 3
-                      }}
-                    >
-                      {/* Title and content are loaded via useEffect for the first page only */}
-                      {index === 0 && (
-                        <div>
-                          {/* Content will be loaded here */}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Page number */}
-                    <div className="absolute bottom-[1.25in] left-[1in] text-sm text-gray-400 dark:text-gray-600">
-                      Page {pageNum}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
+            <div
+              ref={editorRef}
+              contentEditable
+              suppressContentEditableWarning
+              onInput={handleInput}
+              className={cn(
+                'prose prose-lg dark:prose-invert max-w-none focus:outline-none',
+                'font-serif leading-relaxed',
+                'min-h-[70vh] px-6 py-8 rounded-lg bg-background'
+              )}
+              style={{ lineHeight: 1.8 }}
+            />
           ) : (
             <div className="text-center text-muted-foreground py-20">
               <p className="text-xl">Select a chapter to start writing...</p>
