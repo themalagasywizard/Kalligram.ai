@@ -925,7 +925,7 @@ export function Editor() {
       // Find the current block element
       const domAtPos = view.domAtPos(selection.from);
       let currentBlock = domAtPos.node as HTMLElement;
-      if (currentBlock.nodeType === Node.TEXT_NODE) {
+      if (currentBlock.nodeType === 3) { // TEXT_NODE
         currentBlock = currentBlock.parentElement!;
       }
       while (currentBlock && !currentBlock.matches('p, h1, h2, h3, h4, h5, h6, li, blockquote, pre, div[data-type="callout"], details[data-type="toggle"]') && currentBlock !== root) {
