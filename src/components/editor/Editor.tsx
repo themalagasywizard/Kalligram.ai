@@ -25,6 +25,37 @@ import { TableCell } from '@tiptap/extension-table-cell';
 import { ListItem } from '@tiptap/extension-list-item';
 import { BulletList } from '@tiptap/extension-bullet-list';
 import { OrderedList } from '@tiptap/extension-ordered-list';
+import { TextStyle } from '@tiptap/extension-text-style';
+
+// Font size extension (uses textStyle mark)
+const FontSize = Extension.create({
+  name: 'fontSize',
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['textStyle'],
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: element => ({ fontSize: (element as HTMLElement).style.fontSize || null }),
+            renderHTML: attributes => {
+              if (!attributes.fontSize) return {};
+              return { style: `font-size: ${attributes.fontSize}` };
+            },
+          },
+        },
+      },
+    ];
+  },
+  addCommands() {
+    return {
+      setFontSize:
+        (size: string) => ({ chain }: any) => chain().setMark('textStyle', { fontSize: size }).run(),
+      unsetFontSize:
+        () => ({ chain }: any) => chain().setMark('textStyle', { fontSize: null }).run(),
+    } as any;
+  },
+});
 
 // Callout block
 const Callout = Node.create({
@@ -335,6 +366,9 @@ export function Editor() {
       TaskList,
       TaskItem.configure({ nested: true }),
       Image.configure({ inline: false, allowBase64: true }),
+      // Inline styles
+      TextStyle,
+      FontSize,
       // Lists
       BulletList,
       OrderedList,
@@ -605,7 +639,7 @@ export function Editor() {
         if (value) editor.view.dom.style.fontFamily = value;
         break;
       case 'fontSize':
-        // TipTap does not support legacy fontSize; could map to heading/scale later
+        if (value) (editor as any).chain().focus().setFontSize(value).run();
         break;
       default:
         break;
@@ -615,7 +649,7 @@ export function Editor() {
 
   return (
     <div className="flex flex-col h-full">
-      <EditorToolbar onCommand={execCommand} editor={editor as unknown as TTEditor | null} setIsDirty={setIsDirty} />
+      <EditorToolbar onCommand={execCommand} editor={editor as unknown as TTEditor | null} />
 
       <RewritePopup
         show={showPopup}

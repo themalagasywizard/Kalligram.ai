@@ -27,11 +27,10 @@ import type { Editor as TTEditor } from '@tiptap/react';
 interface EditorToolbarProps {
   onCommand: (command: string, value?: string) => void;
   editor?: TTEditor | null;
-  setIsDirty: (dirty: boolean) => void;
+  setIsDirty?: (dirty: boolean) => void;
 }
 
 export function EditorToolbar({ onCommand, editor, setIsDirty }: EditorToolbarProps) {
-  const [activeFontSize, setActiveFontSize] = useState<string>('3');
   const [selectedFont, setSelectedFont] = useState<string>(() =>
     typeof window !== 'undefined' ? localStorage.getItem('selectedFont') || 'Merriweather' : 'Merriweather'
   );
@@ -52,6 +51,8 @@ export function EditorToolbar({ onCommand, editor, setIsDirty }: EditorToolbarPr
     { name: 'Georgia', value: 'Georgia, serif', category: 'System' },
     { name: 'Verdana', value: 'Verdana, sans-serif', category: 'System' },
   ];
+
+  const sizeOptions = ['12px','14px','16px','18px','20px','24px','28px','32px','36px','48px','60px','72px'];
 
   const handleBold = () => {
     if (editor) {
@@ -109,19 +110,12 @@ export function EditorToolbar({ onCommand, editor, setIsDirty }: EditorToolbarPr
         }
       }
     }
-    setIsDirty(true);
+    setIsDirty?.(true);
   };
 
   const handleFontSize = (size: string) => {
-    setActiveFontSize(size);
-    // Store font size preference and apply to editor container
-    localStorage.setItem('selectedFontSize', size);
-    if (editor) {
-      // Apply font size to the editor container
-      const editorElement = editor.view.dom;
-      editorElement.style.fontSize = `${size}px`;
-    }
-    setIsDirty(true);
+    if (editor) (editor as any).chain().focus().setFontSize(size).run(); else onCommand('fontSize', size);
+    setIsDirty?.(true);
   };
 
   const handleFontChange = (fontValue: string, fontName: string) => {
@@ -298,20 +292,9 @@ export function EditorToolbar({ onCommand, editor, setIsDirty }: EditorToolbarPr
             </TooltipContent>
           </Tooltip>
           <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => handleFontSize('1')}>8 pt</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleFontSize('2')}>9 pt</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleFontSize('3')}>10 pt</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleFontSize('4')}>11 pt</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleFontSize('5')}>12 pt</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleFontSize('6')}>14 pt</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleFontSize('7')}>16 pt</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleFontSize('8')}>18 pt</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleFontSize('9')}>20 pt</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleFontSize('10')}>24 pt</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleFontSize('11')}>28 pt</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleFontSize('12')}>36 pt</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleFontSize('13')}>48 pt</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleFontSize('14')}>72 pt</DropdownMenuItem>
+            {sizeOptions.map(sz => (
+              <DropdownMenuItem key={sz} onClick={() => handleFontSize(sz)}>{sz}</DropdownMenuItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
 
