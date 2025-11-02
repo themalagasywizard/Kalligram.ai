@@ -18,6 +18,7 @@ import TaskItem from '@tiptap/extension-task-item';
 import Image from '@tiptap/extension-image';
 import Suggestion from '@tiptap/suggestion';
 import { Extension, Node, mergeAttributes } from '@tiptap/core';
+import { TextSelection } from '@tiptap/pm/state';
 import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableHeader } from '@tiptap/extension-table-header';
@@ -965,7 +966,8 @@ export function Editor() {
         const paragraphType = state.schema.nodes['paragraph'];
         if (paragraphType) {
           tr.insert(insertPos + 1, paragraphType.create());
-          tr.setSelection(state.selection.constructor.near(tr.doc.resolve(insertPos + 2)));
+          const newPos = tr.doc.resolve(insertPos + 2);
+          tr.setSelection(TextSelection.near(newPos));
         }
         
         view.dispatch(tr);
