@@ -57,6 +57,20 @@ const FontSize = Extension.create({
   },
 });
 
+// PageBreak block
+const PageBreak = Node.create({
+  name: 'pageBreak',
+  group: 'block',
+  atom: true,
+  selectable: false,
+  parseHTML() {
+    return [{ tag: 'hr[data-page-break="true"]' }];
+  },
+  renderHTML() {
+    return ['hr', { 'data-page-break': 'true', class: 'page-break border-0 my-2' }];
+  },
+});
+
 // Callout block
 const Callout = Node.create({
   name: 'callout',
@@ -393,6 +407,7 @@ export function Editor() {
       // Custom blocks
       Callout,
       Toggle,
+      PageBreak,
       // Slash menu
       SlashCommand,
     ],
@@ -667,7 +682,9 @@ export function Editor() {
     const heightIn = orient === 'portrait' ? dims.h : dims.w;
     return { width: `${widthIn}in`, height: `${heightIn}in` } as React.CSSProperties;
   };
-  const computeContentPadding = () => ({ padding: '1in' } as React.CSSProperties);
+  const computeContentPadding = () => ({ padding: '1in 1.25in' } as React.CSSProperties);
+
+  const reflowLock = useRef(false);
 
   const recomputePagination = () => {
     const size = (currentProject?.page_size || 'A4');
@@ -688,11 +705,94 @@ export function Editor() {
     window.dispatchEvent(new CustomEvent('pagination-update', { detail: { count } }));
   };
 
+  // Compute and enforce true page breaks by inserting PageBreak nodes at block boundaries
+  const updatePageBreaks = () => {
+    if (!editor || reflowLock.current) return;
+    const view = editor.view;
+    const root = contentFrameRef.current?.querySelector('.ProseMirror') as HTMLElement | null;
+    if (!root) return;
+
+    // Determine content height per page (inside padding)
+    const size = (currentProject?.page_size || 'A4');
+    const orient = (currentProject?.orientation || 'portrait');
+    const sizes = { A4: { w: 8.27, h: 11.69 }, A3: { w: 11.69, h: 16.54 } } as const;
+    const dims = sizes[size];
+    const heightIn = orient === 'portrait' ? dims.h : dims.w;
+    const pageH = Math.round(heightIn * 96);
+    const contentH = Math.max(1, pageH - (Math.round(1 * 96) * 2)); // 1in top/bottom
+
+    // Remove existing breaks positions from measurement
+    const children = Array.from(root.children) as HTMLElement[];
+    let accum = 0;
+    const insertPositions: number[] = [];
+
+    for (const el of children) {
+      if (el.matches('hr[data-page-break="true"]')) {
+        // reset per page
+        accum = 0;
+        continue;
+      }
+      const rect = el.getBoundingClientRect();
+      const h = Math.ceil(rect.height);
+      if (accum + h > contentH) {
+        // Insert break before this element
+        try {
+          const pos = view.posAtDOM(el, 0);
+          if (typeof pos === 'number') insertPositions.push(pos);
+        } catch {}
+        accum = h; // new page accumulator starts with this element
+      } else {
+        accum += h;
+      }
+    }
+
+    // Compare with existing breaks
+    const state = view.state;
+    const breakType = state.schema.nodes['pageBreak'];
+    if (!breakType) return;
+
+    const existing: number[] = [];
+    state.doc.descendants((node, pos) => {
+      if (node.type === breakType) existing.push(pos);
+    });
+
+    // Normalize positions (avoid duplicates)
+    const desired = Array.from(new Set(insertPositions)).sort((a,b)=>a-b);
+    const existSorted = existing.slice().sort((a,b)=>a-b);
+    const same = desired.length === existSorted.length && desired.every((v,i)=>v===existSorted[i]);
+    if (same) return;
+
+    reflowLock.current = true;
+    let tr = state.tr;
+    // Remove existing breaks from end
+    for (let i = existing.length - 1; i >= 0; i--) {
+      const pos = existing[i];
+      const node = state.doc.nodeAt(pos);
+      if (node) tr = tr.delete(pos, pos + node.nodeSize);
+    }
+    // Insert desired breaks in ascending order with offset
+    let offset = 0;
+    desired.forEach((pos) => {
+      tr = tr.insert(pos + offset, breakType.create());
+      offset += 1; // pageBreak nodeSize assumed 1
+    });
+
+    if (tr.docChanged) {
+      view.dispatch(tr);
+      // Update page count per breaks
+      const count = desired.length + 1;
+      setPageCount(count);
+      window.dispatchEvent(new CustomEvent('pagination-update', { detail: { count } }));
+    }
+    reflowLock.current = false;
+  };
+
   useEffect(() => {
     recomputePagination();
-    const ro = new ResizeObserver(() => recomputePagination());
+    const ro = new ResizeObserver(() => { recomputePagination(); updatePageBreaks(); });
     if (contentFrameRef.current) ro.observe(contentFrameRef.current);
-    return () => ro.disconnect();
+    const int = setInterval(updatePageBreaks, 500);
+    return () => { ro.disconnect(); clearInterval(int); };
   }, [currentProject?.page_size, currentProject?.orientation]);
 
   useEffect(() => {
