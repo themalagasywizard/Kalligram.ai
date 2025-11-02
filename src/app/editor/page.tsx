@@ -12,6 +12,7 @@ import { projectStorage, chapterStorage, currentProjectStorage, fileStorage } fr
 import { Chapter } from '@/types';
 import { ExportDialog } from '@/components/dialogs/ExportDialog';
 import { SettingsDialog } from '@/components/dialogs/SettingsDialog';
+import { NewProjectDialog } from '@/components/dialogs/NewProjectDialog';
 
 function EditorPageContent() {
   const {
@@ -30,6 +31,7 @@ function EditorPageContent() {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
 
   // Load project and chapters on mount
   useEffect(() => {
@@ -229,7 +231,7 @@ function EditorPageContent() {
         <AppHeader
           onSave={handleSave}
           onLoadProject={() => toast.info('Load project dialog (to implement)')}
-          onNewProject={() => toast.info('New project dialog (to implement)')}
+          onNewProject={() => setNewProjectOpen(true)}
           onImportFile={handleImportFile}
           onExportProject={handleExportProject}
           onOpenSettings={() => setSettingsDialogOpen(true)}
@@ -270,6 +272,21 @@ function EditorPageContent() {
         <SettingsDialog
           open={settingsDialogOpen}
           onOpenChange={setSettingsDialogOpen}
+        />
+
+        <NewProjectDialog
+          open={newProjectOpen}
+          onOpenChange={setNewProjectOpen}
+          onCreate={({ title, description, page_size, orientation }) => {
+            const project = projectStorage.create(title, description, { page_size, orientation });
+            setCurrentProject(project);
+            currentProjectStorage.set(project.id);
+            const firstChapter = chapterStorage.create(project.id, 'Page 1', '', 0);
+            setChapters([firstChapter]);
+            updateChapterCache(firstChapter.id, firstChapter);
+            setCurrentChapter(firstChapter);
+            toast.success('Project created');
+          }}
         />
       </div>
     </TooltipProvider>

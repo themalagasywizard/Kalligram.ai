@@ -20,7 +20,7 @@ export const projectStorage = {
     return projects.find(p => p.id === id) || null;
   },
 
-  create(title: string, description?: string): Project {
+  create(title: string, description?: string, settings?: { page_size?: 'A4' | 'A3'; orientation?: 'portrait' | 'landscape' }): Project {
     const project: Project = {
       id: Date.now().toString(),
       user_id: 'local_user',
@@ -28,7 +28,9 @@ export const projectStorage = {
       description,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      chapter_count: 0
+      chapter_count: 0,
+      page_size: settings?.page_size || 'A4',
+      orientation: settings?.orientation || 'portrait'
     };
 
     const projects = this.getAll();

@@ -6,6 +6,8 @@ export interface Project {
   created_at: string;
   updated_at: string;
   chapter_count?: number;
+  page_size?: 'A4' | 'A3';
+  orientation?: 'portrait' | 'landscape';
 }
 
 export interface Chapter {

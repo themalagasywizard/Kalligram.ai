@@ -336,7 +336,7 @@ const SlashCommand = Extension.create({
 });
 
 export function Editor() {
-  const { currentChapter, setIsDirty } = useApp();
+  const { currentChapter, currentProject, setIsDirty } = useApp();
   const [selectedText, setSelectedText] = useState('');
   const [selectionRange, setSelectionRange] = useState<Range | null>(null);
   const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 });
@@ -647,6 +647,20 @@ export function Editor() {
     setIsDirty(true);
   }, [editor, setIsDirty]);
 
+  const computePageStyle = () => {
+    const size = (currentProject?.page_size || 'A4');
+    const orient = (currentProject?.orientation || 'portrait');
+    const sizes = {
+      A4: { w: 8.27, h: 11.69 },
+      A3: { w: 11.69, h: 16.54 },
+    } as const;
+    const dims = sizes[size];
+    const widthIn = orient === 'portrait' ? dims.w : dims.h;
+    const heightIn = orient === 'portrait' ? dims.h : dims.w;
+    return { width: `${widthIn}in`, height: `${heightIn}in` } as React.CSSProperties;
+  };
+  const computeContentPadding = () => ({ padding: '1in' } as React.CSSProperties);
+
   return (
     <div className="flex flex-col h-full">
       <EditorToolbar onCommand={execCommand} editor={editor as unknown as TTEditor | null} />
@@ -664,9 +678,13 @@ export function Editor() {
       />
       
       <div className="flex-1 overflow-y-auto px-8 pt-6 pb-0">
-        <div className="max-w-3xl mx-auto min-h-full">
+        <div className="mx-auto min-h-full">
           {editor ? (
-            <EditorContent editor={editor} />
+            <div className="mx-auto shadow border bg-white dark:bg-gray-900" style={computePageStyle()}>
+              <div className="w-full h-full" style={computeContentPadding()}>
+                <EditorContent editor={editor} />
+              </div>
+            </div>
           ) : null}
         </div>
       </div>
