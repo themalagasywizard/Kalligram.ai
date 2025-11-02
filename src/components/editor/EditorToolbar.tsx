@@ -54,17 +54,59 @@ export function EditorToolbar({ onCommand, editor, setIsDirty }: EditorToolbarPr
   ];
 
   const handleBold = () => {
-    if (editor) editor.chain().focus().toggleBold().run(); else onCommand('bold');
+    if (editor) {
+      const { from, to } = editor.state.selection;
+      const hasSelection = from !== to;
+
+      if (hasSelection) {
+        // Apply to selected text
+        editor.chain().focus().setTextSelection({ from, to }).toggleBold().run();
+      } else {
+        // Apply to current position
+        editor.chain().focus().toggleBold().run();
+      }
+    } else {
+      onCommand('bold');
+    }
   };
+
   const handleItalic = () => {
-    if (editor) editor.chain().focus().toggleItalic().run(); else onCommand('italic');
+    if (editor) {
+      const { from, to } = editor.state.selection;
+      const hasSelection = from !== to;
+
+      if (hasSelection) {
+        // Apply to selected text
+        editor.chain().focus().setTextSelection({ from, to }).toggleItalic().run();
+      } else {
+        // Apply to current position
+        editor.chain().focus().toggleItalic().run();
+      }
+    } else {
+      onCommand('italic');
+    }
   };
   const handleHeading = (level: 1 | 2 | 3 | 'paragraph') => {
     if (editor) {
+      const { from, to } = editor.state.selection;
+      const hasSelection = from !== to;
+
       if (level === 'paragraph') {
-        editor.chain().focus().setParagraph().run();
+        if (hasSelection) {
+          // Apply to selected text
+          editor.chain().focus().setTextSelection({ from, to }).setParagraph().run();
+        } else {
+          // Apply to current block
+          editor.chain().focus().setParagraph().run();
+        }
       } else {
-        editor.chain().focus().toggleHeading({ level: level as 1 | 2 | 3 }).run();
+        if (hasSelection) {
+          // Apply heading to selected text
+          editor.chain().focus().setTextSelection({ from, to }).toggleHeading({ level: level as 1 | 2 | 3 }).run();
+        } else {
+          // Apply heading to current block or create new heading
+          editor.chain().focus().toggleHeading({ level: level as 1 | 2 | 3 }).run();
+        }
       }
     }
     setIsDirty(true);

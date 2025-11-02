@@ -145,6 +145,48 @@
   background-color: #2a2a2a;
 }
 
+/* Heading styles */
+.ProseMirror h1 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 2.5rem;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  color: #000000;
+}
+
+.ProseMirror h2 {
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 2.25rem;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  color: #000000;
+}
+
+.ProseMirror h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 2rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: #000000;
+}
+
+/* Dark mode heading styles */
+.dark .ProseMirror h1,
+.dark .ProseMirror h2,
+.dark .ProseMirror h3 {
+  color: #ffffff;
+}
+
+/* Paragraph styling */
+.ProseMirror p {
+  margin: 0.75rem 0;
+  line-height: 1.75;
+  color: inherit;
+}
+
 /* List styling */
 
 .ProseMirror li {

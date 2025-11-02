@@ -358,7 +358,12 @@ export function Editor() {
     content: initialContent,
     editorProps: {
       attributes: {
-        class: 'prose prose-lg dark:prose-invert max-w-none focus:outline-none font-serif leading-relaxed min-h-[70vh] px-6 py-8 rounded-lg bg-background',
+        class: 'prose prose-lg dark:prose-invert max-w-none focus:outline-none font-serif leading-relaxed px-6 py-8 rounded-lg bg-background',
+        style: 'min-height: 70vh; overflow-y: visible;',
+      },
+      handleScrollToSelection: (view) => {
+        // Allow natural scrolling behavior
+        return false;
       },
       handleDOMEvents: {
         drop: (view, event) => {
@@ -625,7 +630,7 @@ export function Editor() {
       />
       
       <div className="flex-1 overflow-y-auto px-8 pt-6 pb-0">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-3xl mx-auto min-h-full">
           {editor ? (
             <EditorContent editor={editor} />
           ) : null}
