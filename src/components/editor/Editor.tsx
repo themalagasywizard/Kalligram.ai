@@ -694,7 +694,15 @@ export function Editor() {
     const widthIn = orient === 'portrait' ? dims.w : dims.h;
     const heightIn = orient === 'portrait' ? dims.h : dims.w;
     const pageH = Math.round(heightIn * 96);
-    const contentH = Math.max(1, pageH - 2 * Math.round(1 * 96)); // minus padding top/bottom (1in)
+
+    // Account for margins and bleed zones
+    const topMargin = Math.round(1 * 96); // 1 inch top margin
+    const bottomMargin = Math.round(1 * 96); // 1 inch bottom margin
+    const topBleed = Math.round(0.125 * 96); // 0.125 inch top bleed
+    const bottomBleed = Math.round(0.125 * 96); // 0.125 inch bottom bleed
+
+    // Effective content height = page height - margins - bleed zones
+    const contentH = Math.max(1, pageH - topMargin - bottomMargin - topBleed - bottomBleed);
     setPageHeightPx(pageH);
     const contentEl = contentFrameRef.current;
     if (!contentEl) return;
@@ -712,14 +720,22 @@ export function Editor() {
     const root = contentFrameRef.current?.querySelector('.ProseMirror') as HTMLElement | null;
     if (!root) return;
 
-    // Determine content height per page (inside padding)
+    // Determine content height per page (accounting for margins and bleed zones)
     const size = (currentProject?.page_size || 'A4');
     const orient = (currentProject?.orientation || 'portrait');
     const sizes = { A4: { w: 8.27, h: 11.69 }, A3: { w: 11.69, h: 16.54 } } as const;
     const dims = sizes[size];
     const heightIn = orient === 'portrait' ? dims.h : dims.w;
     const pageH = Math.round(heightIn * 96);
-    const contentH = Math.max(1, pageH - (Math.round(1 * 96) * 2)); // 1in top/bottom
+
+    // Account for margins and bleed zones
+    const topMargin = Math.round(1 * 96); // 1 inch top margin
+    const bottomMargin = Math.round(1 * 96); // 1 inch bottom margin
+    const topBleed = Math.round(0.125 * 96); // 0.125 inch top bleed
+    const bottomBleed = Math.round(0.125 * 96); // 0.125 inch bottom bleed
+
+    // Effective content height = page height - margins - bleed zones
+    const contentH = Math.max(1, pageH - topMargin - bottomMargin - topBleed - bottomBleed);
 
     // Remove existing breaks positions from measurement
     const children = Array.from(root.children) as HTMLElement[];
