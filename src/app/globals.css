@@ -159,24 +159,46 @@
 .ProseMirror ul[data-type="bulletList"] {
   list-style-type: disc;
   padding-left: 1.5rem;
+  color: #000000;
 }
 
 .ProseMirror ul[data-type="bulletList"] li {
   display: list-item;
   list-style-type: disc;
   list-style-position: outside;
+  color: inherit;
+}
+
+.ProseMirror ul[data-type="bulletList"] li::marker {
+  color: #000000;
+}
+
+/* Dark mode bullet lists */
+.dark .ProseMirror ul[data-type="bulletList"] li::marker {
+  color: #ffffff;
 }
 
 /* Numbered lists */
 .ProseMirror ol[data-type="orderedList"] {
   list-style-type: decimal;
   padding-left: 1.5rem;
+  color: #000000;
 }
 
 .ProseMirror ol[data-type="orderedList"] li {
   display: list-item;
   list-style-type: decimal;
   list-style-position: outside;
+  color: inherit;
+}
+
+.ProseMirror ol[data-type="orderedList"] li::marker {
+  color: #000000;
+}
+
+/* Dark mode numbered lists */
+.dark .ProseMirror ol[data-type="orderedList"] li::marker {
+  color: #ffffff;
 }
 
 /* Task list styling */
