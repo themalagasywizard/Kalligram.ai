@@ -103,20 +103,121 @@ const SlashCommand = Extension.create({
         allowSpaces: true,
         items: ({ query }) => {
           const all = [
-            { title: 'Paragraph', run: () => editor.chain().focus().setParagraph().run() },
-            { title: 'Heading 1', run: () => editor.chain().focus().toggleHeading({ level: 1 }).run() },
-            { title: 'Heading 2', run: () => editor.chain().focus().toggleHeading({ level: 2 }).run() },
-            { title: 'Heading 3', run: () => editor.chain().focus().toggleHeading({ level: 3 }).run() },
-            { title: 'Bullet List', run: () => editor.chain().focus().toggleBulletList().run() },
-            { title: 'Numbered List', run: () => editor.chain().focus().toggleOrderedList().run() },
-            { title: 'Todo List', run: () => editor.chain().focus().toggleTaskList().run() },
-            { title: 'Quote', run: () => editor.chain().focus().toggleBlockquote().run() },
-            { title: 'Divider', run: () => editor.chain().focus().setHorizontalRule().run() },
-            { title: 'Code Block', run: () => editor.chain().focus().toggleCodeBlock().run() },
-            { title: 'Callout', run: () => (editor as any).chain().focus().setCallout({ icon: '💡' }).run() },
-            { title: 'Toggle', run: () => (editor as any).chain().focus().setToggle({ title: 'Toggle' }).run() },
-            { title: 'Table', run: () => {/* handled in command to show grid */} },
-            { title: 'Image', run: () => {
+            { title: 'Paragraph', action: 'paragraph' },
+            { title: 'Heading 1', action: 'heading1' },
+            { title: 'Heading 2', action: 'heading2' },
+            { title: 'Heading 3', action: 'heading3' },
+            { title: 'Bullet List', action: 'bulletList' },
+            { title: 'Numbered List', action: 'numberedList' },
+            { title: 'Todo List', action: 'todoList' },
+            { title: 'Quote', action: 'quote' },
+            { title: 'Divider', action: 'divider' },
+            { title: 'Code Block', action: 'codeBlock' },
+            { title: 'Callout', action: 'callout' },
+            { title: 'Toggle', action: 'toggle' },
+            { title: 'Table', action: 'table' },
+            { title: 'Image', action: 'image' },
+          ];
+          return all.filter(i => i.title.toLowerCase().includes(query.toLowerCase()));
+        },
+        command: ({ editor, range, props }) => {
+          const action = (props as any).action;
+          const insertPos = range.from;
+
+          // Delete the "/" trigger text
+          editor.chain().focus().deleteRange(range).run();
+
+          switch (action) {
+            case 'paragraph':
+              editor.chain().focus().setTextSelection(insertPos).setParagraph().run();
+              break;
+            case 'heading1':
+              editor.chain().focus().setTextSelection(insertPos).setHeading({ level: 1 }).run();
+              break;
+            case 'heading2':
+              editor.chain().focus().setTextSelection(insertPos).setHeading({ level: 2 }).run();
+              break;
+            case 'heading3':
+              editor.chain().focus().setTextSelection(insertPos).setHeading({ level: 3 }).run();
+              break;
+            case 'bulletList':
+              editor.chain().focus().setTextSelection(insertPos).toggleBulletList().run();
+              break;
+            case 'numberedList':
+              editor.chain().focus().setTextSelection(insertPos).toggleOrderedList().run();
+              break;
+            case 'todoList':
+              editor.chain().focus().setTextSelection(insertPos).toggleTaskList().run();
+              break;
+            case 'quote':
+              editor.chain().focus().setTextSelection(insertPos).toggleBlockquote().run();
+              break;
+            case 'divider':
+              editor.chain().focus().setTextSelection(insertPos).setHorizontalRule().run();
+              break;
+            case 'codeBlock':
+              editor.chain().focus().setTextSelection(insertPos).toggleCodeBlock().run();
+              break;
+            case 'callout':
+              (editor as any).chain().focus().setTextSelection(insertPos).setCallout({ icon: '💡' }).run();
+              break;
+            case 'toggle':
+              (editor as any).chain().focus().setTextSelection(insertPos).setToggle({ title: 'Toggle' }).run();
+              break;
+            case 'table': {
+              // Open dimension picker
+              const view = editor.view;
+              const coords = view.coordsAtPos(insertPos);
+              const grid = document.createElement('div');
+              grid.style.position = 'fixed';
+              grid.style.left = coords.left + 'px';
+              grid.style.top = (coords.bottom + 8) + 'px';
+              grid.className = 'z-50 rounded-md border bg-popover p-2 shadow-md';
+
+              const info = document.createElement('div');
+              info.className = 'text-xs text-muted-foreground mb-2';
+              info.textContent = '0 × 0';
+              grid.appendChild(info);
+
+              const rowsMax = 8; const colsMax = 8;
+              for (let r = 1; r <= rowsMax; r++) {
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                for (let c = 1; c <= colsMax; c++) {
+                  const cell = document.createElement('div');
+                  cell.className = 'm-[2px] h-5 w-5 rounded border bg-background';
+                  cell.dataset.r = String(r);
+                  cell.dataset.c = String(c);
+                  cell.addEventListener('mouseenter', () => {
+                    info.textContent = `${r} × ${c}`;
+                    Array.from(grid.querySelectorAll('[data-r]')).forEach((el) => {
+                      const rr = Number((el as HTMLElement).dataset.r);
+                      const cc = Number((el as HTMLElement).dataset.c);
+                      (el as HTMLElement).style.background = (rr <= r && cc <= c) ? 'var(--accent)' : 'var(--background)';
+                    });
+                  });
+                  cell.addEventListener('click', () => {
+                    editor.chain().focus().setTextSelection(insertPos).insertTable({ rows: r, cols: c, withHeaderRow: true }).run();
+                    cleanup();
+                  });
+                  row.appendChild(cell);
+                }
+                grid.appendChild(row);
+              }
+
+              const cleanup = () => {
+                window.removeEventListener('keydown', onKey);
+                window.removeEventListener('click', onClickOutside, true);
+                grid.parentNode && grid.parentNode.removeChild(grid);
+              };
+              const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') cleanup(); };
+              const onClickOutside = (e: MouseEvent) => { if (!grid.contains(e.target as HTMLElement)) cleanup(); };
+              window.addEventListener('keydown', onKey);
+              window.addEventListener('click', onClickOutside, true);
+              document.body.appendChild(grid);
+              break;
+            }
+            case 'image': {
               const input = document.createElement('input');
               input.type = 'file';
               input.accept = 'image/*';
@@ -124,76 +225,15 @@ const SlashCommand = Extension.create({
                 const file = input.files?.[0];
                 if (!file) return;
                 const reader = new FileReader();
-                reader.onload = () => editor.chain().focus().setImage({ src: reader.result as string }).run();
+                reader.onload = () => {
+                  editor.chain().focus().setTextSelection(insertPos).setImage({ src: reader.result as string }).run();
+                };
                 reader.readAsDataURL(file);
               };
               input.click();
-            } },
-          ];
-          return all.filter(i => i.title.toLowerCase().includes(query.toLowerCase()));
-        },
-        command: ({ editor, range, props }) => {
-          // Remember insertion point, then remove the "/" trigger and query
-          const insertPos = range.from;
-          editor.chain().focus().deleteRange(range).setTextSelection(insertPos).run();
-
-          if ((props as any).title === 'Table') {
-            // Open dimension picker near caret
-            const view = editor.view;
-            const coords = view.coordsAtPos(insertPos);
-            const grid = document.createElement('div');
-            grid.style.position = 'fixed';
-            grid.style.left = coords.left + 'px';
-            grid.style.top = (coords.bottom + 8) + 'px';
-            grid.className = 'z-50 rounded-md border bg-popover p-2 shadow-md';
-
-            const info = document.createElement('div');
-            info.className = 'text-xs text-muted-foreground mb-2';
-            info.textContent = '0 × 0';
-            grid.appendChild(info);
-
-            const rowsMax = 8; const colsMax = 8;
-            for (let r = 1; r <= rowsMax; r++) {
-              const row = document.createElement('div');
-              row.style.display = 'flex';
-              for (let c = 1; c <= colsMax; c++) {
-                const cell = document.createElement('div');
-                cell.className = 'm-[2px] h-5 w-5 rounded border bg-background';
-                cell.dataset.r = String(r);
-                cell.dataset.c = String(c);
-                cell.addEventListener('mouseenter', () => {
-                  info.textContent = `${r} × ${c}`;
-                  Array.from(grid.querySelectorAll('[data-r]')).forEach((el) => {
-                    const rr = Number((el as HTMLElement).dataset.r);
-                    const cc = Number((el as HTMLElement).dataset.c);
-                    (el as HTMLElement).style.background = (rr <= r && cc <= c) ? 'var(--accent)' : 'var(--background)';
-                  });
-                });
-                cell.addEventListener('click', () => {
-                  editor.chain().focus().setTextSelection(insertPos).insertTable({ rows: r, cols: c, withHeaderRow: true }).run();
-                  cleanup();
-                });
-                row.appendChild(cell);
-              }
-              grid.appendChild(row);
+              break;
             }
-
-            const cleanup = () => {
-              window.removeEventListener('keydown', onKey);
-              window.removeEventListener('click', onClickOutside, true);
-              grid.parentNode && grid.parentNode.removeChild(grid);
-            };
-            const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') cleanup(); };
-            const onClickOutside = (e: MouseEvent) => { if (!grid.contains(e.target as HTMLElement)) cleanup(); };
-            window.addEventListener('keydown', onKey);
-            window.addEventListener('click', onClickOutside, true);
-            document.body.appendChild(grid);
-            return;
           }
-
-          // Default: set caret back to insertion point and run the action
-          editor.chain().focus().setTextSelection(insertPos).run();
-          (props as any).run?.();
         },
         render: () => {
           let el: HTMLDivElement | null = null;
