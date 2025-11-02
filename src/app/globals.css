@@ -399,3 +399,34 @@
   cursor: row-resize;
 }
 
+/* Page break styling */
+.ProseMirror hr[data-page-break="true"] {
+  border: none;
+  border-top: 2px dashed #cbd5e1;
+  margin: 0.5rem 0;
+  height: 0;
+  break-after: page;
+  page-break-after: always;
+}
+
+.dark .ProseMirror hr[data-page-break="true"] {
+  border-top-color: #475569;
+}
+
+/* Ensure content respects container padding and doesn't overflow */
+.ProseMirror {
+  overflow: visible;
+  position: relative;
+}
+
+/* Prevent content from appearing in margins */
+.ProseMirror > * {
+  max-width: 100%;
+}
+
+/* Content frame overflow protection */
+[ref="contentFrameRef"] {
+  overflow: visible;
+  position: relative;
+}
+

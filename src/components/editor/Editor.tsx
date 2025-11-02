@@ -682,7 +682,25 @@ export function Editor() {
     const heightIn = orient === 'portrait' ? dims.h : dims.w;
     return { width: `${widthIn}in`, height: `${heightIn}in` } as React.CSSProperties;
   };
-  const computeContentPadding = () => ({ padding: '1in 1.25in' } as React.CSSProperties);
+  const computeContentPadding = () => {
+    // Top and bottom padding includes margins + bleed zones
+    // Side padding remains 1.25in
+    const topMargin = 1; // 1 inch
+    const bottomMargin = 1; // 1 inch
+    const topBleed = 0.125; // 0.125 inch
+    const bottomBleed = 0.125; // 0.125 inch
+    
+    // Content starts after top margin + top bleed, ends before bottom margin + bottom bleed
+    const paddingTop = topMargin + topBleed;
+    const paddingBottom = bottomMargin + bottomBleed;
+    
+    return { 
+      paddingTop: `${paddingTop}in`,
+      paddingBottom: `${paddingBottom}in`,
+      paddingLeft: '1.25in',
+      paddingRight: '1.25in'
+    } as React.CSSProperties;
+  };
 
   const reflowLock = useRef(false);
 
@@ -740,23 +758,36 @@ export function Editor() {
     // Remove existing breaks positions from measurement
     const children = Array.from(root.children) as HTMLElement[];
     let accum = 0;
+    let currentPageStart = 0; // Track where current page content starts
     const insertPositions: number[] = [];
 
     for (const el of children) {
       if (el.matches('hr[data-page-break="true"]')) {
-        // reset per page
+        // Reset accumulator for new page, but account for page break height
         accum = 0;
+        currentPageStart = accum;
         continue;
       }
+      
       const rect = el.getBoundingClientRect();
       const h = Math.ceil(rect.height);
-      if (accum + h > contentH) {
-        // Insert break before this element
+      
+      // Check if adding this element would exceed content height for current page
+      if (accum + h > contentH && accum > 0) {
+        // Insert break before this element to start new page
         try {
           const pos = view.posAtDOM(el, 0);
-          if (typeof pos === 'number') insertPositions.push(pos);
-        } catch {}
-        accum = h; // new page accumulator starts with this element
+          if (typeof pos === 'number' && pos > 0) {
+            insertPositions.push(pos);
+            // Reset accumulator for new page
+            accum = h;
+            currentPageStart = 0;
+          } else {
+            accum += h;
+          }
+        } catch {
+          accum += h;
+        }
       } else {
         accum += h;
       }
@@ -823,6 +854,73 @@ export function Editor() {
     return () => window.removeEventListener('scroll-to-page', handler as any);
   }, [pageHeightPx]);
 
+  // Ensure cursor placement respects content boundaries
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const proseMirror = target.closest('.ProseMirror');
+      if (!proseMirror || !contentFrameRef.current) return;
+
+      // Get click position relative to content frame
+      const contentRect = contentFrameRef.current.getBoundingClientRect();
+      const clickY = e.clientY - contentRect.top;
+
+      // Top margin + bleed zone (1in + 0.125in)
+      const topMarginBleed = Math.round(1.125 * 96);
+      // Bottom margin + bleed zone (1in + 0.125in)  
+      const bottomMarginBleed = Math.round(1.125 * 96);
+      
+      // Check if click is in top margin/bleed zone
+      if (clickY < topMarginBleed) {
+        e.preventDefault();
+        e.stopPropagation();
+        // Move cursor to start of content (after first page break if exists)
+        setTimeout(() => {
+          const view = editor.view;
+          const state = view.state;
+          const breakType = state.schema.nodes['pageBreak'];
+          let startPos = 1; // Start after doc node
+          
+          // Find first content position after top margin
+          state.doc.nodesBetween(0, state.doc.content.size, (node, pos) => {
+            if (node.type === breakType) {
+              startPos = pos + node.nodeSize;
+              return false; // Stop at first break
+            }
+            if (startPos === 1 && node.isBlock) {
+              startPos = pos;
+            }
+          });
+          
+          editor.chain().focus().setTextSelection(startPos).run();
+        }, 0);
+        return false;
+      }
+
+      // Check if click is in bottom margin/bleed zone (check relative to each page)
+      const relativeY = clickY % pageHeightPx;
+      const pageContentHeight = pageHeightPx - topMarginBleed - bottomMarginBleed;
+      
+      if (relativeY > topMarginBleed + pageContentHeight) {
+      e.preventDefault();
+        e.stopPropagation();
+        // Move cursor to end of current page content or start of next page
+        setTimeout(() => {
+          const view = editor.view;
+          const docSize = view.state.doc.content.size;
+          editor.chain().focus().setTextSelection(docSize).run();
+        }, 0);
+        return false;
+      }
+    };
+
+    const editorDom = editor.view.dom;
+    editorDom.addEventListener('mousedown', handleClick);
+    return () => editorDom.removeEventListener('mousedown', handleClick);
+  }, [editor, pageHeightPx]);
+
   return (
     <div className="flex flex-col h-full">
       <EditorToolbar onCommand={execCommand} editor={editor as unknown as TTEditor | null} />
@@ -862,12 +960,36 @@ export function Editor() {
                       boxShadow: `inset 0 ${bleedPx}px 0 0 rgba(255,0,0,0.15), inset 0 -${bleedPx}px 0 0 rgba(255,0,0,0.15)`
                     }}
                   />
+                  {/* Top margin zone (non-editable) */}
+                  <div
+                    className="absolute left-0 right-0 pointer-events-none bg-gray-100/30 dark:bg-gray-800/30"
+                    style={{
+                      top: 0,
+                      height: `${Math.round(1 * 96) + bleedPx}px`, // 1in margin + bleed
+                    }}
+                  />
+                  {/* Bottom margin zone (non-editable) */}
+                  <div
+                    className="absolute left-0 right-0 pointer-events-none bg-gray-100/30 dark:bg-gray-800/30"
+                style={{
+                      bottom: 0,
+                      height: `${Math.round(1 * 96) + bleedPx}px`, // 1in margin + bleed
+                    }}
+                  />
                 </div>
               ))}
 
               {/* Content frame (scrolls vertically and increases page overlays) */}
-              <div className="absolute left-0 top-0 w-full" style={{ minHeight: `${pageCount * pageHeightPx}px` }}>
-                <div className="w-full" style={computeContentPadding()} ref={contentFrameRef}>
+              <div 
+                className="absolute left-0 top-0 w-full" 
+                style={{ minHeight: `${pageCount * pageHeightPx}px` }}
+              >
+                {/* Content area that respects margins and bleed zones */}
+                <div 
+                  className="w-full relative" 
+                  style={computeContentPadding()} 
+                  ref={contentFrameRef}
+                >
                   <EditorContent editor={editor} />
                 </div>
               </div>
