@@ -18,12 +18,14 @@ import {
   Maximize,
   ChevronDown,
 } from 'lucide-react';
+import type { Editor as TTEditor } from '@tiptap/react';
 
 interface EditorToolbarProps {
   onCommand: (command: string, value?: string) => void;
+  editor?: TTEditor | null;
 }
 
-export function EditorToolbar({ onCommand }: EditorToolbarProps) {
+export function EditorToolbar({ onCommand, editor }: EditorToolbarProps) {
   const [activeFontSize, setActiveFontSize] = useState<string>('3');
   const [selectedFont, setSelectedFont] = useState<string>(() =>
     typeof window !== 'undefined' ? localStorage.getItem('selectedFont') || 'Merriweather' : 'Merriweather'
@@ -46,9 +48,15 @@ export function EditorToolbar({ onCommand }: EditorToolbarProps) {
     { name: 'Verdana', value: 'Verdana, sans-serif', category: 'System' },
   ];
 
-  const handleBold = () => onCommand('bold');
-  const handleItalic = () => onCommand('italic');
-  const handleHeading = () => onCommand('formatBlock', 'h2');
+  const handleBold = () => {
+    if (editor) editor.chain().focus().toggleBold().run(); else onCommand('bold');
+  };
+  const handleItalic = () => {
+    if (editor) editor.chain().focus().toggleItalic().run(); else onCommand('italic');
+  };
+  const handleHeading = () => {
+    if (editor) editor.chain().focus().toggleHeading({ level: 2 }).run(); else onCommand('formatBlock', 'h2');
+  };
   
   const handleFontSize = (size: string) => {
     setActiveFontSize(size);

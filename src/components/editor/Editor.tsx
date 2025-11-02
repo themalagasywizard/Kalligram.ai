@@ -1,133 +1,231 @@
 'use client';
 
-import React, { useRef, useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { EditorToolbar } from './EditorToolbar';
 import { RewritePopup } from './RewritePopup';
 import { cn } from '@/lib/utils';
 
+import { useEditor, EditorContent, Editor as TTEditor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
+import Link from '@tiptap/extension-link';
+import Highlight from '@tiptap/extension-highlight';
+import TextAlign from '@tiptap/extension-text-align';
+import Placeholder from '@tiptap/extension-placeholder';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import Image from '@tiptap/extension-image';
+import Suggestion from '@tiptap/suggestion';
+import { Extension } from '@tiptap/core';
+
+// Slash command extension
+const SlashCommand = Extension.create({
+  name: 'slash-command',
+  addProseMirrorPlugins() {
+    const editor = this.editor;
+    return [
+      Suggestion({
+        editor,
+        char: '/',
+        startOfLine: true,
+        allowSpaces: false,
+        items: ({ query }) => {
+          const all = [
+            { title: 'Paragraph', run: () => editor.chain().focus().setParagraph().run() },
+            { title: 'Heading 1', run: () => editor.chain().focus().toggleHeading({ level: 1 }).run() },
+            { title: 'Heading 2', run: () => editor.chain().focus().toggleHeading({ level: 2 }).run() },
+            { title: 'Heading 3', run: () => editor.chain().focus().toggleHeading({ level: 3 }).run() },
+            { title: 'Bullet List', run: () => editor.chain().focus().toggleBulletList().run() },
+            { title: 'Numbered List', run: () => editor.chain().focus().toggleOrderedList().run() },
+            { title: 'Todo List', run: () => editor.chain().focus().toggleTaskList().run() },
+            { title: 'Quote', run: () => editor.chain().focus().toggleBlockquote().run() },
+            { title: 'Divider', run: () => editor.chain().focus().setHorizontalRule().run() },
+            { title: 'Code Block', run: () => editor.chain().focus().toggleCodeBlock().run() },
+            { title: 'Image', run: () => {
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = 'image/*';
+              input.onchange = () => {
+                const file = input.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => editor.chain().focus().setImage({ src: reader.result as string }).run();
+                reader.readAsDataURL(file);
+              };
+              input.click();
+            } },
+          ];
+          return all.filter(i => i.title.toLowerCase().includes(query.toLowerCase()));
+        },
+        command: ({ editor, range, props }) => {
+          props.run();
+          editor.chain().focus().deleteRange(range).run();
+        },
+        render: () => {
+          let el: HTMLDivElement | null = document.createElement('div');
+          el.className = 'z-50 rounded-md border bg-popover p-1 text-popover-foreground shadow-md';
+          return {
+            onStart: (props) => {
+              const { clientRect } = props;
+              if (!clientRect) return;
+              const rect = clientRect();
+              if (!rect) return;
+              el!.style.position = 'fixed';
+              el!.style.left = rect.left + 'px';
+              el!.style.top = rect.bottom + 6 + 'px';
+              el!.innerHTML = '';
+              const items = props.items as any[];
+              items.forEach((item) => {
+                const button = document.createElement('button');
+                button.className = 'flex w-full items-center gap-2 rounded px-2 py-1 text-sm hover:bg-accent';
+                button.textContent = item.title;
+                button.addEventListener('mousedown', (e) => e.preventDefault());
+                button.addEventListener('click', () => props.command(item));
+                el!.appendChild(button);
+              });
+              document.body.appendChild(el!);
+            },
+            onUpdate: (props) => {
+              const { clientRect } = props;
+              if (!clientRect) return;
+              const rect = clientRect();
+              if (!rect) return;
+              el!.style.left = rect.left + 'px';
+              el!.style.top = rect.bottom + 6 + 'px';
+            },
+            onKeyDown: (props) => {
+              if (props.event.key === 'Escape') {
+                props.event.preventDefault();
+                return true;
+              }
+              return false;
+            },
+            onExit: () => {
+              if (el && el.parentNode) el.parentNode.removeChild(el);
+              el = null;
+            },
+          };
+        },
+      }) as any,
+    ];
+  },
+});
+
 export function Editor() {
-  const { currentChapter, setIsDirty, isDirty } = useApp();
-  const editorRef = useRef<HTMLDivElement>(null);
+  const { currentChapter, setIsDirty } = useApp();
   const [selectedText, setSelectedText] = useState('');
   const [selectionRange, setSelectionRange] = useState<Range | null>(null);
   const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 });
   const [showPopup, setShowPopup] = useState(false);
 
-  const countWords = useCallback((text: string): number => {
-    const cleanText = text.replace(/<[^>]*>/g, '');
-    const words = cleanText.trim().split(/\s+/);
-    return words.filter(word => word.length > 0).length;
-  }, []);
+  const initialContent = useMemo(() => {
+    if (!currentChapter) return '<p />';
+    const title = `<h1 class="text-3xl font-bold mb-4">${currentChapter.title}</h1>`;
+    const body = currentChapter.content || '<p>Start writing your story here...</p>';
+    return `${title}${body}`;
+  }, [currentChapter?.id]);
 
-  const handleInput = useCallback(() => {
-    if (!isDirty) {
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+      Underline,
+      Link.configure({ openOnClick: true, autolink: true }),
+      Highlight,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Placeholder.configure({ placeholder: 'Type "/" for commands…' }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Image.configure({ inline: false, allowBase64: true }),
+      SlashCommand,
+    ],
+    content: initialContent,
+    editorProps: {
+      attributes: {
+        class: 'prose prose-lg dark:prose-invert max-w-none focus:outline-none font-serif leading-relaxed min-h-[70vh] px-6 py-8 rounded-lg bg-background',
+      },
+      handleDOMEvents: {
+        drop: (view, event) => {
+          // Basic drop-to-insert image
+          const dt = (event as DragEvent).dataTransfer;
+          if (dt && dt.files && dt.files[0] && dt.files[0].type.startsWith('image/')) {
+            const file = dt.files[0];
+            const reader = new FileReader();
+            reader.onload = () => {
+              editor?.chain().focus().setImage({ src: reader.result as string }).run();
+            };
+            reader.readAsDataURL(file);
+            event.preventDefault();
+            return true;
+          }
+          return false;
+        },
+      },
+    },
+    onUpdate() {
       setIsDirty(true);
-    }
-  }, [isDirty, setIsDirty]);
+    },
+  });
 
-  const handleSelectionChange = useCallback(() => {
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0 && editorRef.current?.contains(selection.anchorNode)) {
-      const text = selection.toString().trim();
-      if (text.length > 0) {
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
-        setSelectedText(text);
-        setSelectionRange(range);
-        setPopupPosition({
-          top: rect.top - 50,
-          left: rect.left + rect.width / 2
-        });
-        setShowPopup(true);
-      } else {
-        setShowPopup(false);
-      }
-    } else {
-      setShowPopup(false);
-    }
-  }, []);
-
+  // Selection popup for AI rewrite
   useEffect(() => {
-    document.addEventListener('selectionchange', handleSelectionChange);
-    return () => {
-      document.removeEventListener('selectionchange', handleSelectionChange);
+    const handler = () => {
+      if (!editor) return;
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return setShowPopup(false);
+      const range = sel.getRangeAt(0);
+      if (!editor.view.dom.contains(range.startContainer)) return setShowPopup(false);
+      const text = sel.toString().trim();
+      if (!text) return setShowPopup(false);
+      const rect = range.getBoundingClientRect();
+      setSelectedText(text);
+      setSelectionRange(range);
+      setPopupPosition({ top: rect.top - 50, left: rect.left + rect.width / 2 });
+      setShowPopup(true);
     };
-  }, [handleSelectionChange]);
+    document.addEventListener('selectionchange', handler);
+    return () => document.removeEventListener('selectionchange', handler);
+  }, [editor]);
 
+  // Allow external inserts via custom event
   useEffect(() => {
-    if (editorRef.current && currentChapter) {
-      // Only set content on the first page (editable one)
-      const firstPage = editorRef.current;
-      if (firstPage) {
-        // Create the title element
-        const titleElement = document.createElement('h1');
-        titleElement.className = 'text-2xl font-bold text-primary mb-6 text-center';
-        titleElement.textContent = currentChapter.title;
-
-        // Set the content
-        const content = currentChapter.content || '<p class="mb-4">Start writing your story here...</p>';
-
-        // Combine title and content
-        firstPage.innerHTML = titleElement.outerHTML + content;
-
-        // Apply saved font
-        const savedFont = localStorage.getItem('selectedFont') || 'Merriweather';
-        const fontOption = [
-          { name: 'Merriweather', value: 'Merriweather, serif' },
-          { name: 'Crimson Text', value: 'Crimson Text, serif' },
-          { name: 'Lato', value: 'Lato, sans-serif' },
-          { name: 'Open Sans', value: 'Open Sans, sans-serif' },
-          { name: 'Roboto', value: 'Roboto, sans-serif' },
-          { name: 'Montserrat', value: 'Montserrat, sans-serif' },
-          { name: 'Poppins', value: 'Poppins, sans-serif' },
-          { name: 'Nunito', value: 'Nunito, sans-serif' },
-          { name: 'Inter', value: 'Inter, sans-serif' },
-          { name: 'Source Sans Pro', value: 'Source Sans Pro, sans-serif' },
-          { name: 'Times New Roman', value: 'Times New Roman, serif' },
-          { name: 'Arial', value: 'Arial, sans-serif' },
-          { name: 'Georgia', value: 'Georgia, serif' },
-          { name: 'Verdana', value: 'Verdana, sans-serif' },
-        ].find(f => f.name === savedFont);
-
-        if (fontOption) {
-          firstPage.style.fontFamily = fontOption.value;
-        }
-      }
-    }
-  }, [currentChapter?.id]); // Only update when chapter changes
-
-
-  const getContent = useCallback(() => {
-    return editorRef.current?.innerHTML || '';
-  }, []);
+    const onInsert = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { text: string };
+      editor?.chain().focus().insertContent(detail.text).run();
+      setIsDirty(true);
+    };
+    window.addEventListener('editor-insert-text', onInsert as any);
+    return () => window.removeEventListener('editor-insert-text', onInsert as any);
+  }, [editor, setIsDirty]);
 
   const execCommand = useCallback((command: string, value?: string) => {
-    if (command === 'fontName' && value) {
-      // Check if there's selected text
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
-        // Apply font to selected text only
-        document.execCommand('fontName', false, value);
-      } else if (editorRef.current) {
-        // No selection, apply to entire editor
-        editorRef.current.style.fontFamily = value;
-      }
-      setIsDirty(true);
-    } else if (command === 'fontSize' && value) {
-      // fontSize should already respect selections with document.execCommand
-      document.execCommand(command, false, value);
-      setIsDirty(true);
-    } else {
-      document.execCommand(command, false, value || undefined);
-      setIsDirty(true);
+    if (!editor) return;
+    switch (command) {
+      case 'bold':
+        editor.chain().focus().toggleBold().run();
+        break;
+      case 'italic':
+        editor.chain().focus().toggleItalic().run();
+        break;
+      case 'formatBlock':
+        if (value === 'h2') editor.chain().focus().toggleHeading({ level: 2 }).run();
+        break;
+      case 'fontName':
+        if (value) editor.view.dom.style.fontFamily = value;
+        break;
+      case 'fontSize':
+        // TipTap does not support legacy fontSize; could map to heading/scale later
+        break;
+      default:
+        break;
     }
-    editorRef.current?.focus();
-  }, [setIsDirty]);
+    setIsDirty(true);
+  }, [editor, setIsDirty]);
 
   return (
     <div className="flex flex-col h-full">
-      <EditorToolbar onCommand={execCommand} />
+      <EditorToolbar onCommand={execCommand} editor={editor as unknown as TTEditor | null} />
+
       <RewritePopup
         show={showPopup}
         position={popupPosition}
@@ -137,30 +235,14 @@ export function Editor() {
         onClose={() => setShowPopup(false)}
         setIsDirty={setIsDirty}
       />
-      
+
       <div className="flex-1 overflow-y-auto px-8 pt-6 pb-0">
         <div className="max-w-3xl mx-auto">
-          {currentChapter ? (
-            <div
-              ref={editorRef}
-              contentEditable
-              suppressContentEditableWarning
-              onInput={handleInput}
-              className={cn(
-                'prose prose-lg dark:prose-invert max-w-none focus:outline-none',
-                'font-serif leading-relaxed',
-                'min-h-[70vh] px-6 py-8 rounded-lg bg-background'
-              )}
-              style={{ lineHeight: 1.8 }}
-            />
-          ) : (
-            <div className="text-center text-muted-foreground py-20">
-              <p className="text-xl">Select a chapter to start writing...</p>
-            </div>
-          )}
+          {editor ? (
+            <EditorContent editor={editor} />
+          ) : null}
         </div>
       </div>
-
     </div>
   );
 }

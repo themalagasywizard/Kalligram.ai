@@ -182,44 +182,10 @@ function EditorPageContent() {
       return;
     }
 
-    const editorElement = document.querySelector('[contenteditable]') as HTMLElement;
-    if (editorElement) {
-      // Focus the editor first
-      editorElement.focus();
-      
-      // Move cursor to the end of the content
-      const selection = window.getSelection();
-      if (selection) {
-        const range = document.createRange();
-        range.selectNodeContents(editorElement);
-        range.collapse(false); // Collapse to end
-        selection.removeAllRanges();
-        selection.addRange(range);
-        
-        // Insert text at cursor position
-        const paragraphs = text.split('\n').filter(p => p.trim());
-        paragraphs.forEach((paragraph, index) => {
-          if (index > 0 || editorElement.textContent?.trim()) {
-            // Add spacing before new content if there's existing content
-            const br1 = document.createElement('br');
-            const br2 = document.createElement('br');
-            range.insertNode(br2);
-            range.insertNode(br1);
-            range.collapse(false);
-          }
-          
-          const textNode = document.createTextNode(paragraph);
-          range.insertNode(textNode);
-          range.collapse(false);
-        });
-        
-        // Scroll to the inserted text
-        editorElement.scrollTop = editorElement.scrollHeight;
-      }
-      
-      setIsDirty(true);
-      toast.success('Text inserted into editor');
-    }
+    // Send to TipTap via custom event
+    window.dispatchEvent(new CustomEvent('editor-insert-text', { detail: { text } }));
+    setIsDirty(true);
+    toast.success('Text inserted into editor');
   }, [currentChapter, setIsDirty]);
 
   const handleExportProject = useCallback(() => {
