@@ -58,12 +58,12 @@ export function EditorToolbar({ onCommand, editor }: EditorToolbarProps) {
   const handleItalic = () => {
     if (editor) editor.chain().focus().toggleItalic().run(); else onCommand('italic');
   };
-  const handleHeading = (level: number | 'paragraph') => {
+  const handleHeading = (level: 1 | 2 | 3 | 'paragraph') => {
     if (editor) {
       if (level === 'paragraph') {
         editor.chain().focus().setParagraph().run();
       } else {
-        editor.chain().focus().toggleHeading({ level }).run();
+        editor.chain().focus().toggleHeading({ level: level as 1 | 2 | 3 }).run();
       }
     } else {
       if (level === 'paragraph') {
