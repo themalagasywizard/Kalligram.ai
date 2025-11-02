@@ -17,7 +17,78 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Image from '@tiptap/extension-image';
 import Suggestion from '@tiptap/suggestion';
-import { Extension } from '@tiptap/core';
+import { Extension, Node, mergeAttributes } from '@tiptap/core';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableHeader } from '@tiptap/extension-table-header';
+import { TableCell } from '@tiptap/extension-table-cell';
+
+// Callout block
+const Callout = Node.create({
+  name: 'callout',
+  group: 'block',
+  content: 'block+',
+  defining: true,
+  addAttributes() {
+    return {
+      icon: { default: '💡' },
+      tone: { default: 'info' },
+    };
+  },
+  parseHTML() {
+    return [{ tag: 'div[data-type="callout"]' }];
+  },
+  renderHTML({ node }) {
+    const icon = node.attrs.icon || '💡';
+    return ['div', { 'data-type': 'callout', class: 'callout my-2 rounded-md border px-3 py-2 bg-muted/40' },
+      ['div', { class: 'flex items-start gap-3' },
+        ['div', { class: 'select-none text-xl leading-none pt-0.5' }, icon],
+        ['div', { class: 'flex-1' }, 0]
+      ]
+    ];
+  },
+  addCommands() {
+    return {
+      setCallout:
+        (attrs?: { icon?: string; tone?: string }) =>
+        ({ chain }: any) =>
+          chain()
+            .insertContent({ type: this.name, attrs: attrs || {}, content: [{ type: 'paragraph' }] })
+            .run(),
+    } as any;
+  },
+});
+
+// Toggle (collapsible) block
+const Toggle = Node.create({
+  name: 'toggle',
+  group: 'block',
+  content: 'block+',
+  defining: true,
+  addAttributes() {
+    return { title: { default: 'Toggle' } };
+  },
+  parseHTML() {
+    return [{ tag: 'details[data-type="toggle"]' }];
+  },
+  renderHTML({ node }) {
+    const title = node.attrs.title || 'Toggle';
+    return ['details', { 'data-type': 'toggle', class: 'toggle my-2 rounded-md border bg-muted/30' },
+      ['summary', { class: 'cursor-pointer select-none px-3 py-1 font-medium' }, title],
+      ['div', { class: 'px-3 pb-2' }, 0]
+    ];
+  },
+  addCommands() {
+    return {
+      setToggle:
+        (attrs?: { title?: string }) =>
+        ({ chain }: any) =>
+          chain()
+            .insertContent({ type: this.name, attrs: attrs || {}, content: [{ type: 'paragraph' }] })
+            .run(),
+    } as any;
+  },
+});
 
 // Slash command extension
 const SlashCommand = Extension.create({
@@ -28,8 +99,8 @@ const SlashCommand = Extension.create({
       Suggestion({
         editor,
         char: '/',
-        startOfLine: true,
-        allowSpaces: false,
+        startOfLine: false,
+        allowSpaces: true,
         items: ({ query }) => {
           const all = [
             { title: 'Paragraph', run: () => editor.chain().focus().setParagraph().run() },
@@ -42,6 +113,9 @@ const SlashCommand = Extension.create({
             { title: 'Quote', run: () => editor.chain().focus().toggleBlockquote().run() },
             { title: 'Divider', run: () => editor.chain().focus().setHorizontalRule().run() },
             { title: 'Code Block', run: () => editor.chain().focus().toggleCodeBlock().run() },
+            { title: 'Callout', run: () => (editor as any).chain().focus().setCallout({ icon: '💡' }).run() },
+            { title: 'Toggle', run: () => (editor as any).chain().focus().setToggle({ title: 'Toggle' }).run() },
+            { title: 'Table', run: () => (editor as any).chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: true }).run() },
             { title: 'Image', run: () => {
               const input = document.createElement('input');
               input.type = 'file';
@@ -118,6 +192,7 @@ export function Editor() {
   const [selectionRange, setSelectionRange] = useState<Range | null>(null);
   const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 });
   const [showPopup, setShowPopup] = useState(false);
+  const [selectionPos, setSelectionPos] = useState<{ from: number; to: number } | null>(null);
 
   const initialContent = useMemo(() => {
     if (!currentChapter) return '<p />';
@@ -137,6 +212,15 @@ export function Editor() {
       TaskList,
       TaskItem.configure({ nested: true }),
       Image.configure({ inline: false, allowBase64: true }),
+      // Tables
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      // Custom blocks
+      Callout,
+      Toggle,
+      // Slash menu
       SlashCommand,
     ],
     content: initialContent,
@@ -180,6 +264,7 @@ export function Editor() {
       const rect = range.getBoundingClientRect();
       setSelectedText(text);
       setSelectionRange(range);
+      setSelectionPos({ from: editor.state.selection.from, to: editor.state.selection.to });
       setPopupPosition({ top: rect.top - 50, left: rect.left + rect.width / 2 });
       setShowPopup(true);
     };
@@ -231,6 +316,8 @@ export function Editor() {
         position={popupPosition}
         selectedText={selectedText}
         selectionRange={selectionRange}
+        selectionPos={selectionPos}
+        editor={editor as unknown as TTEditor | null}
         onRewrite={() => setShowPopup(false)}
         onClose={() => setShowPopup(false)}
         setIsDirty={setIsDirty}
