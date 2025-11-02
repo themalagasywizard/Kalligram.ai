@@ -14,10 +14,13 @@ import {
   Bold,
   Italic,
   Heading1,
+  Heading2,
+  Heading3,
   Type,
   Maximize,
   ChevronDown,
   Table,
+  Pilcrow,
 } from 'lucide-react';
 import type { Editor as TTEditor } from '@tiptap/react';
 
@@ -55,8 +58,20 @@ export function EditorToolbar({ onCommand, editor }: EditorToolbarProps) {
   const handleItalic = () => {
     if (editor) editor.chain().focus().toggleItalic().run(); else onCommand('italic');
   };
-  const handleHeading = () => {
-    if (editor) editor.chain().focus().toggleHeading({ level: 2 }).run(); else onCommand('formatBlock', 'h2');
+  const handleHeading = (level: number | 'paragraph') => {
+    if (editor) {
+      if (level === 'paragraph') {
+        editor.chain().focus().setParagraph().run();
+      } else {
+        editor.chain().focus().toggleHeading({ level }).run();
+      }
+    } else {
+      if (level === 'paragraph') {
+        onCommand('formatBlock', 'p');
+      } else {
+        onCommand('formatBlock', `h${level}`);
+      }
+    }
   };
   
   const handleFontSize = (size: string) => {
@@ -172,21 +187,39 @@ export function EditorToolbar({ onCommand, editor }: EditorToolbarProps) {
           </TooltipContent>
         </Tooltip>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleHeading}
-              className="h-9 w-9"
-            >
-              <Heading1 className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Heading</p>
-          </TooltipContent>
-        </Tooltip>
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-9 px-3 gap-2">
+                  <Heading1 className="h-4 w-4" />
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Text Format</p>
+            </TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => handleHeading('paragraph')} className="cursor-pointer">
+              <Pilcrow className="h-4 w-4 mr-2" />
+              Normal
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleHeading(1)} className="cursor-pointer">
+              <Heading1 className="h-4 w-4 mr-2" />
+              Heading 1
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleHeading(2)} className="cursor-pointer">
+              <Heading2 className="h-4 w-4 mr-2" />
+              Heading 2
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleHeading(3)} className="cursor-pointer">
+              <Heading3 className="h-4 w-4 mr-2" />
+              Heading 3
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <Tooltip>
           <TooltipTrigger asChild>
