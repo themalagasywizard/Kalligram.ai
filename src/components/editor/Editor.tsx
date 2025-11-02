@@ -115,7 +115,7 @@ const SlashCommand = Extension.create({
             { title: 'Code Block', run: () => editor.chain().focus().toggleCodeBlock().run() },
             { title: 'Callout', run: () => (editor as any).chain().focus().setCallout({ icon: '💡' }).run() },
             { title: 'Toggle', run: () => (editor as any).chain().focus().setToggle({ title: 'Toggle' }).run() },
-            { title: 'Table', run: () => (editor as any).chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: true }).run() },
+            { title: 'Table', run: () => {/* handled in command to show grid */} },
             { title: 'Image', run: () => {
               const input = document.createElement('input');
               input.type = 'file';
@@ -133,22 +133,80 @@ const SlashCommand = Extension.create({
           return all.filter(i => i.title.toLowerCase().includes(query.toLowerCase()));
         },
         command: ({ editor, range, props }) => {
-          props.run();
+          // Remove the "/" trigger and query first
           editor.chain().focus().deleteRange(range).run();
+
+          if ((props as any).title === 'Table') {
+            // Open dimension picker near caret
+            const view = editor.view;
+            const coords = view.coordsAtPos(editor.state.selection.from);
+            const grid = document.createElement('div');
+            grid.style.position = 'fixed';
+            grid.style.left = coords.left + 'px';
+            grid.style.top = (coords.bottom + 8) + 'px';
+            grid.className = 'z-50 rounded-md border bg-popover p-2 shadow-md';
+
+            const info = document.createElement('div');
+            info.className = 'text-xs text-muted-foreground mb-2';
+            info.textContent = '0 × 0';
+            grid.appendChild(info);
+
+            const rowsMax = 8; const colsMax = 8;
+            for (let r = 1; r <= rowsMax; r++) {
+              const row = document.createElement('div');
+              row.style.display = 'flex';
+              for (let c = 1; c <= colsMax; c++) {
+                const cell = document.createElement('div');
+                cell.className = 'm-[2px] h-5 w-5 rounded border bg-background';
+                cell.dataset.r = String(r);
+                cell.dataset.c = String(c);
+                cell.addEventListener('mouseenter', () => {
+                  info.textContent = `${r} × ${c}`;
+                  Array.from(grid.querySelectorAll('[data-r]')).forEach((el) => {
+                    const rr = Number((el as HTMLElement).dataset.r);
+                    const cc = Number((el as HTMLElement).dataset.c);
+                    (el as HTMLElement).style.background = (rr <= r && cc <= c) ? 'var(--accent)' : 'var(--background)';
+                  });
+                });
+                cell.addEventListener('click', () => {
+                  editor.chain().focus().insertTable({ rows: r, cols: c, withHeaderRow: true }).run();
+                  cleanup();
+                });
+                row.appendChild(cell);
+              }
+              grid.appendChild(row);
+            }
+
+            const cleanup = () => {
+              window.removeEventListener('keydown', onKey);
+              window.removeEventListener('click', onClickOutside, true);
+              grid.parentNode && grid.parentNode.removeChild(grid);
+            };
+            const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') cleanup(); };
+            const onClickOutside = (e: MouseEvent) => { if (!grid.contains(e.target as HTMLElement)) cleanup(); };
+            window.addEventListener('keydown', onKey);
+            window.addEventListener('click', onClickOutside, true);
+            document.body.appendChild(grid);
+            return;
+          }
+
+          // Default: run the selected action
+          (props as any).run?.();
         },
         render: () => {
-          let el: HTMLDivElement | null = document.createElement('div');
-          el.className = 'z-50 rounded-md border bg-popover p-1 text-popover-foreground shadow-md';
+          let el: HTMLDivElement | null = null;
           return {
             onStart: (props) => {
               const { clientRect } = props;
               if (!clientRect) return;
               const rect = clientRect();
               if (!rect) return;
-              el!.style.position = 'fixed';
-              el!.style.left = rect.left + 'px';
-              el!.style.top = rect.bottom + 6 + 'px';
-              el!.innerHTML = '';
+              if (!el) el = document.createElement('div');
+              el.className = 'z-50 rounded-md border bg-popover p-1 text-popover-foreground shadow-md';
+              el.style.position = 'fixed';
+              el.style.left = rect.left + 'px';
+              el.style.top = rect.bottom + 6 + 'px';
+              el.innerHTML = '';
               const items = props.items as any[];
               items.forEach((item) => {
                 const button = document.createElement('button');
@@ -164,9 +222,9 @@ const SlashCommand = Extension.create({
               const { clientRect } = props;
               if (!clientRect) return;
               const rect = clientRect();
-              if (!rect) return;
-              el!.style.left = rect.left + 'px';
-              el!.style.top = rect.bottom + 6 + 'px';
+              if (!rect || !el) return;
+              el.style.left = rect.left + 'px';
+              el.style.top = rect.bottom + 6 + 'px';
             },
             onKeyDown: (props) => {
               if (props.event.key === 'Escape') {
