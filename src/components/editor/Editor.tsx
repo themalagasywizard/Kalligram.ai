@@ -430,11 +430,11 @@ export function Editor() {
 
         // Check if cursor is inside a table
         let isInTable = false;
-        let tableNode = null;
+        let tableInfo: { node: any; pos: number } | null = null;
         state.doc.nodesBetween(selection.from, selection.to, (node, pos) => {
           if (node.type.name === 'table') {
             isInTable = true;
-            tableNode = { node, pos };
+            tableInfo = { node, pos };
             return false;
           }
         });
@@ -443,9 +443,11 @@ export function Editor() {
         // 1. We're in a table
         // 2. No text is selected (just cursor position)
         // 3. The table is the only content or we're at the table boundaries
-        if (isInTable && !hasTextSelection) {
-          const tableSize = tableNode.node.nodeSize;
-          const tableStart = tableNode.pos;
+        if (isInTable && !hasTextSelection && tableInfo) {
+          const tableNode = (tableInfo as { node: any; pos: number }).node;
+          const tablePos = (tableInfo as { node: any; pos: number }).pos;
+          const tableSize = tableNode.nodeSize;
+          const tableStart = tablePos;
           const tableEnd = tableStart + tableSize;
 
           // Check if the entire table is selected or if we're at table boundaries
@@ -512,7 +514,7 @@ export function Editor() {
 
         // Close menu when clicking outside
         const closeMenu = (e: MouseEvent) => {
-          if (!menu.contains(e.target as Node)) {
+          if (!menu.contains(e.target as HTMLElement)) {
             menu.remove();
             document.removeEventListener('click', closeMenu);
           }
