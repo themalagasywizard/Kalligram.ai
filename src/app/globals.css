@@ -194,8 +194,7 @@
 /* Numbered lists - comprehensive styling with fallbacks */
 .ProseMirror ol,
 .ProseMirror ol[data-type="orderedList"] {
-  list-style-type: decimal !important;
-  list-style-position: outside !important;
+  list-style-type: none !important; /* Disable native markers to avoid duplication */
   padding-left: 1.5rem !important;
   margin: 0 !important;
   counter-reset: list-counter !important;
@@ -203,8 +202,7 @@
 
 .ProseMirror ol li,
 .ProseMirror ol[data-type="orderedList"] li {
-  list-style-type: decimal !important;
-  list-style-position: outside !important;
+  list-style-type: none !important; /* Disable native markers */
   display: list-item !important;
   margin: 0.25rem 0 !important;
   padding-left: 0 !important;
