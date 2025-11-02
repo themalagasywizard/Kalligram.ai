@@ -141,22 +141,37 @@ const SlashCommand = Extension.create({
               editor.chain().focus().setTextSelection(insertPos).setHeading({ level: 3 }).run();
               break;
             case 'bulletList':
-              editor.chain().focus().setTextSelection(insertPos).toggleBulletList().run();
+              editor.chain().focus().setTextSelection(insertPos).insertContent({
+                type: 'bulletList',
+                content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }]
+              }).run();
               break;
             case 'numberedList':
-              editor.chain().focus().setTextSelection(insertPos).toggleOrderedList().run();
+              editor.chain().focus().setTextSelection(insertPos).insertContent({
+                type: 'orderedList',
+                content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }]
+              }).run();
               break;
             case 'todoList':
-              editor.chain().focus().setTextSelection(insertPos).toggleTaskList().run();
+              editor.chain().focus().setTextSelection(insertPos).insertContent({
+                type: 'taskList',
+                content: [{ type: 'taskItem', attrs: { checked: false }, content: [{ type: 'paragraph' }] }]
+              }).run();
               break;
             case 'quote':
-              editor.chain().focus().setTextSelection(insertPos).toggleBlockquote().run();
+              editor.chain().focus().setTextSelection(insertPos).insertContent({
+                type: 'blockquote',
+                content: [{ type: 'paragraph' }]
+              }).run();
               break;
             case 'divider':
               editor.chain().focus().setTextSelection(insertPos).setHorizontalRule().run();
               break;
             case 'codeBlock':
-              editor.chain().focus().setTextSelection(insertPos).toggleCodeBlock().run();
+              editor.chain().focus().setTextSelection(insertPos).insertContent({
+                type: 'codeBlock',
+                content: [{ type: 'text', text: '' }]
+              }).run();
               break;
             case 'callout':
               (editor as any).chain().focus().setTextSelection(insertPos).setCallout({ icon: '💡' }).run();
@@ -361,12 +376,12 @@ export function Editor() {
       if (!editor.view.dom.contains(range.startContainer)) return setShowPopup(false);
       const text = sel.toString().trim();
       if (!text) return setShowPopup(false);
-      const rect = range.getBoundingClientRect();
-      setSelectedText(text);
-      setSelectionRange(range);
+        const rect = range.getBoundingClientRect();
+        setSelectedText(text);
+        setSelectionRange(range);
       setSelectionPos({ from: editor.state.selection.from, to: editor.state.selection.to });
       setPopupPosition({ top: rect.top - 50, left: rect.left + rect.width / 2 });
-      setShowPopup(true);
+        setShowPopup(true);
     };
     document.addEventListener('selectionchange', handler);
     return () => document.removeEventListener('selectionchange', handler);
@@ -422,7 +437,7 @@ export function Editor() {
         onClose={() => setShowPopup(false)}
         setIsDirty={setIsDirty}
       />
-
+      
       <div className="flex-1 overflow-y-auto px-8 pt-6 pb-0">
         <div className="max-w-3xl mx-auto">
           {editor ? (
