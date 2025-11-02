@@ -27,9 +27,10 @@ import type { Editor as TTEditor } from '@tiptap/react';
 interface EditorToolbarProps {
   onCommand: (command: string, value?: string) => void;
   editor?: TTEditor | null;
+  setIsDirty: (dirty: boolean) => void;
 }
 
-export function EditorToolbar({ onCommand, editor }: EditorToolbarProps) {
+export function EditorToolbar({ onCommand, editor, setIsDirty }: EditorToolbarProps) {
   const [activeFontSize, setActiveFontSize] = useState<string>('3');
   const [selectedFont, setSelectedFont] = useState<string>(() =>
     typeof window !== 'undefined' ? localStorage.getItem('selectedFont') || 'Merriweather' : 'Merriweather'
@@ -65,18 +66,25 @@ export function EditorToolbar({ onCommand, editor }: EditorToolbarProps) {
       } else {
         editor.chain().focus().toggleHeading({ level: level as 1 | 2 | 3 }).run();
       }
-    } else {
-      if (level === 'paragraph') {
-        onCommand('formatBlock', 'p');
-      } else {
-        onCommand('formatBlock', `h${level}`);
-      }
     }
+    setIsDirty(true);
   };
-  
+
   const handleFontSize = (size: string) => {
     setActiveFontSize(size);
-    onCommand('fontSize', size);
+    if (editor) {
+      // Apply font size to selected text using HTML styling
+      const { from, to } = editor.state.selection;
+      if (from !== to) {
+        // Has selection - wrap in span with font size
+        const fontSize = `${size}px`;
+        editor.chain().focus().setMark('textStyle', { fontSize }).run();
+      } else {
+        // No selection - apply to current paragraph
+        editor.chain().focus().setNode('paragraph', { style: `font-size: ${size}px;` }).run();
+      }
+    }
+    setIsDirty(true);
   };
 
   const handleFontChange = (fontValue: string, fontName: string) => {

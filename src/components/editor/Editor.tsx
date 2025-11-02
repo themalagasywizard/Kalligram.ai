@@ -25,6 +25,7 @@ import { TableCell } from '@tiptap/extension-table-cell';
 import { ListItem } from '@tiptap/extension-list-item';
 import { BulletList } from '@tiptap/extension-bullet-list';
 import { OrderedList } from '@tiptap/extension-ordered-list';
+import { TextStyle } from '@tiptap/extension-text-style';
 
 // Callout block
 const Callout = Node.create({
@@ -335,6 +336,7 @@ export function Editor() {
       TaskList,
       TaskItem.configure({ nested: true }),
       Image.configure({ inline: false, allowBase64: true }),
+      TextStyle,
       // Lists
       BulletList,
       OrderedList,
@@ -415,35 +417,171 @@ export function Editor() {
     return () => window.removeEventListener('editor-insert-text', onInsert as any);
   }, [editor, setIsDirty]);
 
-  // Table editing keyboard shortcuts
+  // Table editing keyboard shortcuts and right-click menu
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!editor) return;
 
-      // Delete table with Backspace when table is selected
+      // Only delete table with Backspace/Delete when table is selected but NO text is selected
       if (e.key === 'Backspace' || e.key === 'Delete') {
         const { state } = editor;
         const { selection } = state;
 
-        // Check if selection is inside a table
+        // Check if there's actual text selected
+        const hasTextSelection = selection.from !== selection.to;
+
+        // Check if cursor is inside a table
         let isInTable = false;
-        state.doc.nodesBetween(selection.from, selection.to, (node) => {
+        let tableNode = null;
+        state.doc.nodesBetween(selection.from, selection.to, (node, pos) => {
           if (node.type.name === 'table') {
             isInTable = true;
+            tableNode = { node, pos };
             return false;
           }
         });
 
-        if (isInTable) {
-          e.preventDefault();
-          editor.chain().focus().deleteTable().run();
-          return;
+        // Only delete table if:
+        // 1. We're in a table
+        // 2. No text is selected (just cursor position)
+        // 3. The table is the only content or we're at the table boundaries
+        if (isInTable && !hasTextSelection) {
+          const tableSize = tableNode.node.nodeSize;
+          const tableStart = tableNode.pos;
+          const tableEnd = tableStart + tableSize;
+
+          // Check if the entire table is selected or if we're at table boundaries
+          const isTableFullySelected = selection.from <= tableStart && selection.to >= tableEnd;
+
+          if (isTableFullySelected) {
+            e.preventDefault();
+            editor.chain().focus().deleteTable().run();
+            return;
+          }
         }
       }
     };
 
+    const handleContextMenu = (e: MouseEvent) => {
+      if (!editor) return;
+
+      // Check if right-click is on a table
+      const target = e.target as HTMLElement;
+      const tableElement = target.closest('table');
+
+      if (tableElement) {
+        e.preventDefault();
+
+        // Create context menu
+        const menu = document.createElement('div');
+        menu.className = 'fixed z-50 bg-popover border rounded-md shadow-md p-1';
+        menu.style.left = e.clientX + 'px';
+        menu.style.top = e.clientY + 'px';
+
+        // Grid size selector
+        const gridButton = document.createElement('button');
+        gridButton.className = 'flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded w-full text-left';
+        gridButton.innerHTML = `
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+          </svg>
+          Resize Table
+        `;
+
+        gridButton.onclick = () => {
+          showGridSelector(e.clientX, e.clientY);
+          menu.remove();
+        };
+
+        // Delete button
+        const deleteButton = document.createElement('button');
+        deleteButton.className = 'flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded w-full text-left text-destructive';
+        deleteButton.innerHTML = `
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+          </svg>
+          Delete Table
+        `;
+
+        deleteButton.onclick = () => {
+          editor.chain().focus().deleteTable().run();
+          menu.remove();
+        };
+
+        menu.appendChild(gridButton);
+        menu.appendChild(deleteButton);
+        document.body.appendChild(menu);
+
+        // Close menu when clicking outside
+        const closeMenu = (e: MouseEvent) => {
+          if (!menu.contains(e.target as Node)) {
+            menu.remove();
+            document.removeEventListener('click', closeMenu);
+          }
+        };
+        setTimeout(() => document.addEventListener('click', closeMenu), 0);
+      }
+    };
+
+    const showGridSelector = (x: number, y: number) => {
+      const grid = document.createElement('div');
+      grid.style.position = 'fixed';
+      grid.style.left = x + 'px';
+      grid.style.top = y + 'px';
+      grid.className = 'z-50 rounded-md border bg-popover p-2 shadow-md';
+
+      const info = document.createElement('div');
+      info.className = 'text-xs text-muted-foreground mb-2';
+      info.textContent = '0 × 0';
+      grid.appendChild(info);
+
+      const rowsMax = 8; const colsMax = 8;
+      for (let r = 1; r <= rowsMax; r++) {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        for (let c = 1; c <= colsMax; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'm-[2px] h-5 w-5 rounded border bg-background';
+          cell.dataset.r = String(r);
+          cell.dataset.c = String(c);
+          cell.addEventListener('mouseenter', () => {
+            info.textContent = `${r} × ${c}`;
+            Array.from(grid.querySelectorAll('[data-r]')).forEach((el) => {
+              const rr = Number((el as HTMLElement).dataset.r);
+              const cc = Number((el as HTMLElement).dataset.c);
+              (el as HTMLElement).style.background = (rr <= r && cc <= c) ? 'var(--accent)' : 'var(--background)';
+            });
+          });
+          cell.addEventListener('click', () => {
+            // For resizing, we'll need to implement table resizing logic
+            // For now, we'll just recreate the table with new dimensions
+            editor.chain().focus().deleteTable().insertTable({ rows: r, cols: c, withHeaderRow: true }).run();
+            grid.remove();
+          });
+          row.appendChild(cell);
+        }
+        grid.appendChild(row);
+      }
+
+      document.body.appendChild(grid);
+
+      // Close on escape
+      const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          grid.remove();
+          document.removeEventListener('keydown', handleEscape);
+        }
+      };
+      document.addEventListener('keydown', handleEscape);
+    };
+
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener('contextmenu', handleContextMenu);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('contextmenu', handleContextMenu);
+    };
   }, [editor]);
 
   const execCommand = useCallback((command: string, value?: string) => {
@@ -472,7 +610,7 @@ export function Editor() {
 
   return (
     <div className="flex flex-col h-full">
-      <EditorToolbar onCommand={execCommand} editor={editor as unknown as TTEditor | null} />
+      <EditorToolbar onCommand={execCommand} editor={editor as unknown as TTEditor | null} setIsDirty={setIsDirty} />
 
       <RewritePopup
         show={showPopup}
