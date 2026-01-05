@@ -112,6 +112,30 @@
             line-height: 1.8;
         }
 
+        /* Paged editor layout */
+        .editor-page {
+            position: relative;
+            margin: 2rem auto;
+            background-color: #ffffff;
+            color: #111827;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            border-radius: 0;
+            width: 8.5in; /* Approximate US Letter width */
+            max-width: 100%;
+            height: 11in; /* Approximate US Letter height */
+            padding: 3rem 3.5rem; /* Page margins (content area inside bleed) */
+            box-sizing: border-box;
+            overflow: hidden; /* Hide overflow; JS will flow content to next page */
+        }
+
+        .editor-page::before {
+            content: '';
+            position: absolute;
+            inset: 1.5rem;
+            border: 1px dashed rgba(156, 163, 175, 0.6); /* Bleed / safe zone indicator */
+            pointer-events: none;
+        }
+
         .sidebar {
             width: 250px;
             background-color: var(--card-background);
@@ -994,6 +1018,95 @@
             elements.wordCountPercent.textContent = `${percentage}%`;
         }
 
+        // --- Paged editor helpers ---
+        function createEditorPage() {
+            const page = document.createElement('div');
+            page.className = 'editor-page';
+            page.setAttribute('contenteditable', 'true');
+            return page;
+        }
+
+        function initializeEditorPaging() {
+            const editor = elements.editorContent;
+            if (!editor) return;
+
+            let pages = editor.querySelectorAll('.editor-page');
+
+            // If there are no page containers yet, wrap existing content into the first page
+            if (!pages.length) {
+                const firstPage = createEditorPage();
+
+                // Move any existing child nodes into the first page
+                while (editor.firstChild) {
+                    firstPage.appendChild(editor.firstChild);
+                }
+
+                editor.appendChild(firstPage);
+                pages = editor.querySelectorAll('.editor-page');
+            } else {
+                // Ensure all existing pages are editable
+                pages.forEach(page => {
+                    if (!page.hasAttribute('contenteditable')) {
+                        page.setAttribute('contenteditable', 'true');
+                    }
+                });
+            }
+
+            layoutEditorPages();
+        }
+
+        function layoutEditorPages() {
+            const editor = elements.editorContent;
+            if (!editor) return;
+
+            const pages = editor.querySelectorAll('.editor-page');
+            if (!pages.length) return;
+
+            let safetyCounter = 0;
+            const maxIterations = 5000;
+
+            // Forward pass: move overflowing blocks to following pages
+            for (let i = 0; i < pages.length && safetyCounter < maxIterations; i++) {
+                let page = pages[i];
+                if (!page) continue;
+
+                while (page.scrollHeight > page.clientHeight + 1 && safetyCounter < maxIterations) {
+                    safetyCounter++;
+
+                    let lastNode = page.lastChild;
+                    if (!lastNode) break;
+
+                    // Remove trailing empty text nodes
+                    if (lastNode.nodeType === Node.TEXT_NODE && !lastNode.textContent.trim()) {
+                        page.removeChild(lastNode);
+                        continue;
+                    }
+
+                    // If there's still nothing meaningful to move, stop
+                    if (!page.lastChild) break;
+                    lastNode = page.lastChild;
+
+                    let nextPage = page.nextElementSibling;
+                    if (!nextPage || !nextPage.classList.contains('editor-page')) {
+                        nextPage = createEditorPage();
+                        editor.insertBefore(nextPage, page.nextSibling);
+                    }
+
+                    // Move the node to the beginning of the next page
+                    nextPage.insertBefore(lastNode, nextPage.firstChild);
+                }
+            }
+
+            // Backward pass: remove trailing completely empty pages
+            const allPages = editor.querySelectorAll('.editor-page');
+            for (let i = allPages.length - 1; i > 0; i--) {
+                const page = allPages[i];
+                if (!page.textContent.trim()) {
+                    page.remove();
+                }
+            }
+        }
+
         // Project Functions
         async function loadProjects() {
             try {
@@ -1380,6 +1493,9 @@
             // Update editor content
             elements.chapterTitle.textContent = chapter.title;
             elements.editorContent.innerHTML = chapter.content || '<p class="mb-4">Start writing your story here...</p>';
+
+            // Initialize paged layout for the loaded content
+            initializeEditorPaging();
             
             // Reset dirty state
             appState.isDirty = false;
@@ -1778,6 +1894,7 @@
             elements.editorContent.addEventListener('input', () => {
                 updateSaveStatus(true);
                 updateWordCount();
+                layoutEditorPages();
             });
             
             // Auto-save timer
@@ -2431,9 +2548,11 @@
 
             <!-- Editor Content -->
             <div class="flex-1 overflow-y-auto p-8 bg-card">
-                <div id="editorContent" class="editor-content max-w-3xl mx-auto" contenteditable="true">
-                    <h1 id="chapterTitle" class="text-3xl font-bold mb-6">Loading chapter...</h1>
-                    <p class="mb-4 placeholder-text">Select a chapter to start writing, or create a new one.</p>
+                <div id="editorContent" class="editor-content max-w-3xl mx-auto">
+                    <div class="editor-page" contenteditable="true" data-page="1">
+                        <h1 id="chapterTitle" class="text-3xl font-bold mb-6">Loading chapter...</h1>
+                        <p class="mb-4 placeholder-text">Select a chapter to start writing, or create a new one.</p>
+                    </div>
                 </div>
             </div>
         </main>
@@ -4061,6 +4180,9 @@
                     return;
                 }
 
+                // Use first page as the primary editable surface
+                const firstPage = editorContent.querySelector('.editor-page') || editorContent;
+
                 // Get current cursor position or append to end
                 let selection = window.getSelection();
                 let range;
@@ -4068,9 +4190,9 @@
                 try {
                     range = selection.getRangeAt(0);
                 } catch (e) {
-                    // If no range exists, create one at the end of the editor
+                    // If no range exists, create one at the end of the first page
                     range = document.createRange();
-                    range.selectNodeContents(editorContent);
+                    range.selectNodeContents(firstPage);
                     range.collapse(false);
                     selection.removeAllRanges();
                     selection.addRange(range);
@@ -4097,18 +4219,15 @@
                         range.collapse(true);
                     });
                 } else {
-                    editorContent.appendChild(tempContainer);
+                    firstPage.appendChild(tempContainer);
                 }
 
                 // Mark content as needing to be saved
                 appState.isDirty = true;
-                
-                // Update save button to indicate unsaved changes
-                const saveBtn = document.getElementById('saveBtn');
-                if (saveBtn) {
-                    saveBtn.classList.remove('btn-primary');
-                    saveBtn.classList.add('btn-error');
-                }
+                updateSaveStatus(true);
+
+                // Re-layout pages after insertion
+                layoutEditorPages();
                 
                 // Show success message
                 showToast('Text inserted successfully', 'success');
